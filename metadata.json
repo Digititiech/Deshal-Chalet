@@ -1,0 +1,8 @@
+{
+  "name": "The Star Chalet",
+  "description": "Premium hospitality, chalet, and camp management platform for the Sultanate of Oman with dynamic booking validation and RTL Arabic layout.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

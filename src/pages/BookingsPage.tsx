@@ -39,6 +39,78 @@ const parseTimeToFloat = (timeStr: string): number => {
   return h + (m || 0) / 60;
 };
 
+// TimeRangeSlider: Allows selecting check-in and check-out times via a dual-thumb slider.
+// Uses two synchronized range inputs (0-24 hours) to simulate a range slider.
+// startTime and endTime are strings in "HH:MM" format.
+const TimeRangeSlider: React.FC<{
+  startTime: string;
+  endTime: string;
+  onChange: (start: string, end: string) => void;
+}> = ({ startTime, endTime, onChange }) => {
+  // Convert "HH:MM" to number of minutes for easier handling.
+  const timeToMinutes = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + (m || 0);
+  };
+  const minutesToTime = (min: number) => {
+    const h = Math.floor(min / 60)
+      .toString()
+      .padStart(2, '0');
+    const m = (min % 60).toString().padStart(2, '0');
+    return `${h}:${m}`;
+  };
+
+  const [startMin, setStartMin] = React.useState(timeToMinutes(startTime));
+  const [endMin, setEndMin] = React.useState(timeToMinutes(endTime));
+
+  // Ensure start never exceeds end.
+  const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Math.min(Number(e.target.value), endMin);
+    setStartMin(val);
+    onChange(minutesToTime(val), minutesToTime(endMin));
+  };
+  const handleEndChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Math.max(Number(e.target.value), startMin);
+    setEndMin(val);
+    onChange(minutesToTime(startMin), minutesToTime(val));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs text-slate-300">
+        <span>وقت الدخول: {minutesToTime(startMin)}</span>
+        <span>وقت المغادرة: {minutesToTime(endMin)}</span>
+      </div>
+      <div className="relative h-6">
+        {/* Slider track */}
+        <div className="absolute inset-0 flex items-center">
+          <div className="flex-1 h-2 bg-white/10 rounded" />
+        </div>
+        {/* Start thumb */}
+        <input
+          type="range"
+          min={0}
+          max={1440}
+          step={15}
+          value={startMin}
+          onChange={handleStartChange}
+          className="absolute w-full h-6 appearance-none bg-transparent cursor-pointer thumb-thumb-left"
+        />
+        {/* End thumb */}
+        <input
+          type="range"
+          min={0}
+          max={1440}
+          step={15}
+          value={endMin}
+          onChange={handleEndChange}
+          className="absolute w-full h-6 appearance-none bg-transparent cursor-pointer thumb-thumb-right"
+        />
+      </div>
+    </div>
+  );
+};
+
 const VisualTimeline: React.FC<{
   dateStr: string;
   bookedRanges: Array<{ guestName: string; startHour: number; endHour: number }>;
@@ -971,24 +1043,17 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
                       />
                       
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="block text-[11px] font-bold text-slate-300">وقت الدخول والوصول:</label>
-                          <input 
-                            type="time"
-                            value={newBooking.check_in_time}
-                            onChange={(e) => setNewBooking(prev => ({ ...prev, check_in_time: e.target.value }))}
-                            className="w-full bg-slate-950/40 border border-white/10 text-white rounded-xl text-xs py-2 px-3 focus:outline-none focus:border-blue-500 font-mono font-bold text-center"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="block text-[11px] font-bold text-slate-300">وقت الخروج والمغادرة:</label>
-                          <input 
-                            type="time"
-                            value={newBooking.check_out_time}
-                            onChange={(e) => setNewBooking(prev => ({ ...prev, check_out_time: e.target.value }))}
-                            className="w-full bg-slate-950/40 border border-white/10 text-white rounded-xl text-xs py-2 px-3 focus:outline-none focus:border-blue-500 font-mono font-bold text-center"
-                          />
-                        </div>
+                    <TimeRangeSlider
+                      startTime={newBooking.check_in_time}
+                      endTime={newBooking.check_out_time}
+                      onChange={(start, end) =>
+                        setNewBooking(prev => ({
+                          ...prev,
+                          check_in_time: start,
+                          check_out_time: end,
+                        }))
+                      }
+                    />
                       </div>
                     </div>
                   )}

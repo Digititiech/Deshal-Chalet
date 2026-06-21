@@ -260,16 +260,6 @@ export const LoginPage: React.FC = () => {
 
                 </form>
 
-                {/* Demo Credentials hint (shows only in offline mode) */}
-                <div className="mt-6 p-3.5 rounded-xl bg-blue-500/[0.06] border border-blue-500/15 text-center">
-                  <p className="text-[10px] text-slate-500 font-medium mb-1.5">بيانات الدخول التجريبية (وضع محلي)</p>
-                  <div className="grid grid-cols-2 gap-1 text-[9px] text-slate-500 font-mono">
-                    <span>admin@starchalet.com / 111</span>
-                    <span>manager@starchalet.com / 222</span>
-                    <span>pm_riyadh@starchalet.com / 333</span>
-                    <span>staff@starchalet.com / 444</span>
-                  </div>
-                </div>
               </>
             )}
 

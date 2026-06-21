@@ -6,170 +6,14 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Property, Booking, Profile, Settings, Notification, AuditLog, BookingLog, UserRole } from '../types';
 
-// Default initial profiles matching requested SaaS roles
-export const DEFAULT_PROFILES: Profile[] = [
-  {
-    id: 'p-1',
-    full_name: 'أحمد بن سعيد الحارثي',
-    email: 'admin@starchalet.com',
-    role: 'super_admin',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=120',
-    password: '111',
-    assigned_property_ids: [],
-    last_login_at: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'p-2',
-    full_name: 'سالم بن خليفة البلوشي',
-    email: 'manager@starchalet.com',
-    role: 'company_manager',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=120',
-    password: '222',
-    assigned_property_ids: [],
-    last_login_at: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'p-3',
-    full_name: 'ماجد بن محمد المعمري',
-    email: 'pm_riyadh@starchalet.com',
-    role: 'property_manager',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=120',
-    password: '333',
-    assigned_property_ids: ['prop-1'],
-    last_login_at: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'p-4',
-    full_name: 'فاطمة بنت يوسف الجابري',
-    email: 'staff@starchalet.com',
-    role: 'booking_staff',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=120',
-    password: '444',
-    assigned_property_ids: ['prop-1', 'prop-2'],
-    last_login_at: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  }
-];
+// Production: no demo profiles — users are created via Supabase Auth
+export const DEFAULT_PROFILES: Profile[] = [];
 
-// Initial properties corresponding closely to Stitch design specs
-const DEFAULT_PROPERTIES: Property[] = [
-  {
-    id: 'prop-1',
-    name: 'منتجع الرمال الذهبية',
-    ref_code: 'REF-1042',
-    city: 'riyadh',
-    state_province: 'منطقة الرياض',
-    country: 'المملكة العربية السعودية',
-    address_details: 'حي الثمامة، شارع الثمامة العام',
-    type: 'resort',
-    status: 'available',
-    price_full_day: 450,
-    price_half_day: 250,
-    rating: 4.90,
-    rooms: 4,
-    amenities: ['مسبح خاص', 'شاشة عملاقة', 'موقف خاص', 'مطبخ مجهز', 'إنترنت سريع'],
-    size_sqm: 850,
-    image_url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=800',
-    location_text: 'الثمامة، الرياض',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'prop-2',
-    name: 'شاليه الأفق العالي',
-    ref_code: 'REF-2291',
-    city: 'abha',
-    state_province: 'منطقة عسير',
-    country: 'المملكة العربية السعودية',
-    address_details: 'منتزه السودة، طريق السحاب',
-    type: 'chalet',
-    status: 'occupied',
-    price_full_day: 320,
-    price_half_day: 180,
-    rating: 4.70,
-    rooms: 3,
-    amenities: ['مدفأة شتوية', 'إطلالة جبلية', 'جلسة خارجية', 'حديقة خاصة', 'منطقة شواء'],
-    size_sqm: 420,
-    image_url: 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&q=80&w=800',
-    location_text: 'السودة، أبها',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'prop-3',
-    name: 'مخيم النجوم الملكي',
-    ref_code: 'REF-3005',
-    city: 'alula',
-    state_province: 'منطقة المدينة المنورة',
-    country: 'المملكة العربية السعودية',
-    address_details: 'منطقة الحجر، العلا القديمة',
-    type: 'camp',
-    status: 'available',
-    price_full_day: 580,
-    price_half_day: 350,
-    rating: 5.00,
-    rooms: 1,
-    amenities: ['تلسكوب النجوم', 'حوض جاكوزي خارجي', 'منطقة إشعال النار', 'شواء فاخر', 'مروحة تبريد'],
-    size_sqm: 200,
-    image_url: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&q=80&w=800',
-    location_text: 'صحراء العلا، العلا',
-    created_at: new Date().toISOString(),
-  }
-];
+// Production: no demo properties
+const DEFAULT_PROPERTIES: Property[] = [];
 
-// Initial bookings designed to populate charts and calendars realistically
-const DEFAULT_BOOKINGS: Booking[] = [
-  {
-    id: 'b-1',
-    ref_code: '#CH-892',
-    property_id: 'prop-2',
-    guest_name: 'سليمان الرشيدي',
-    guest_phone: '+966 50 123 4567',
-    guest_email: 'suleiman@gmail.com',
-    check_in: new Date(Date.now() - 3600000 * 24).toISOString(), // Yesterday
-    check_out: new Date(Date.now() + 3600000 * 48).toISOString(), // Tomorrow
-    booking_type: 'full_day',
-    status: 'confirmed',
-    total_price: 960,
-    created_by: 'p-4',
-    created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
-  },
-  {
-    id: 'b-2',
-    ref_code: '#CH-905',
-    property_id: 'prop-1',
-    guest_name: 'خلود العتيبي',
-    guest_phone: '+966 55 987 6543',
-    guest_email: 'kholoud@yahoo.com',
-    check_in: new Date(Date.now() + 3600000 * 72).toISOString(), // In 3 days
-    check_out: new Date(Date.now() + 3600000 * 96).toISOString(),
-    booking_type: 'half_day',
-    status: 'pending',
-    total_price: 250,
-    created_by: 'p-3',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'b-3',
-    ref_code: '#CH-114',
-    property_id: 'prop-3',
-    guest_name: 'عبدالرحمن بن سعود',
-    guest_phone: '+968 9988 7766',
-    guest_email: 'saud-h@muscat.om',
-    check_in: new Date(Date.now() + 3600000 * 120).toISOString(), // In 5 days
-    check_out: new Date(Date.now() + 3600000 * 168).toISOString(),
-    booking_type: 'full_day',
-    status: 'confirmed',
-    total_price: 1160,
-    created_by: 'p-2',
-    created_at: new Date(Date.now() - 3600000 * 96).toISOString(),
-  }
-];
+// Production: no demo bookings, notifications
+const DEFAULT_BOOKINGS: Booking[] = [];
 
 const DEFAULT_SETTINGS: Settings = {
   id: 'set-1',
@@ -182,24 +26,7 @@ const DEFAULT_SETTINGS: Settings = {
   created_at: new Date().toISOString(),
 };
 
-const DEFAULT_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n-1',
-    title: 'تأكيد حجز جديد',
-    message: 'تم تأكيد الحجز #CH-114 لمخيم النجوم الملكي للعميل عبدالرحمن بن سعود.',
-    type: 'success',
-    is_read: false,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'n-2',
-    title: 'حجز قيد المراجعة',
-    message: 'الحجز #CH-905 لمنتجع الرمال الذهبية يتطلب الموافقة والتحقق المالي.',
-    type: 'warning',
-    is_read: false,
-    created_at: new Date(Date.now() - 60000 * 30).toISOString(),
-  }
-];
+const DEFAULT_NOTIFICATIONS: Notification[] = [];
 
 // Helper to write/read to localStorage with fallback safety
 const getStorageObj = <T>(key: string, defaultVal: T): T => {
@@ -223,21 +50,21 @@ const setStorageObj = <T>(key: string, val: T): void => {
   }
 };
 
-// State storage variables
+// State storage variables — all defaults are empty for production
 class LocalDatabase {
-  getProfiles() { return getStorageObj<Profile[]>('tsc_profiles', DEFAULT_PROFILES); }
+  getProfiles() { return getStorageObj<Profile[]>('tsc_profiles', []); }
   setProfiles(profiles: Profile[]) { setStorageObj('tsc_profiles', profiles); }
 
-  getProperties() { return getStorageObj<Property[]>('tsc_properties', DEFAULT_PROPERTIES); }
+  getProperties() { return getStorageObj<Property[]>('tsc_properties', []); }
   setProperties(projs: Property[]) { setStorageObj('tsc_properties', projs); }
 
-  getBookings() { return getStorageObj<Booking[]>('tsc_bookings', DEFAULT_BOOKINGS); }
+  getBookings() { return getStorageObj<Booking[]>('tsc_bookings', []); }
   setBookings(bookings: Booking[]) { setStorageObj('tsc_bookings', bookings); }
 
   getSettings() { return getStorageObj<Settings>('tsc_settings', DEFAULT_SETTINGS); }
   setSettings(settings: Settings) { setStorageObj('tsc_settings', settings); }
 
-  getNotifications() { return getStorageObj<Notification[]>('tsc_notifications', DEFAULT_NOTIFICATIONS); }
+  getNotifications() { return getStorageObj<Notification[]>('tsc_notifications', []); }
   setNotifications(notifs: Notification[]) { setStorageObj('tsc_notifications', notifs); }
 
   getAuditLogs() { return getStorageObj<AuditLog[]>('tsc_audit_logs', []); }
@@ -246,8 +73,14 @@ class LocalDatabase {
 
 export const localDB = new LocalDatabase();
 
-// Current User State simulation (for beautiful staff/admin switching inside preview)
-let CURRENT_USER_PROFILE: Profile = DEFAULT_PROFILES[0]; // Admin by default
+// Current authenticated user profile (set after login via AuthContext)
+let CURRENT_USER_PROFILE: Profile = {
+  id: '',
+  full_name: 'المستخدم',
+  email: '',
+  role: 'booking_staff',
+  status: 'active',
+};
 
 export function getCurrentlySimulatedUser(): Profile {
   try {

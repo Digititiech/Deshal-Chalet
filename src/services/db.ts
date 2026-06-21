@@ -7,7 +7,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Property, Booking, Profile, Settings, Notification, AuditLog, BookingLog, UserRole } from '../types';
 
 // Default initial profiles matching requested SaaS roles
-const DEFAULT_PROFILES: Profile[] = [
+export const DEFAULT_PROFILES: Profile[] = [
   {
     id: 'p-1',
     full_name: 'أحمد بن سعيد الحارثي',
@@ -244,7 +244,7 @@ class LocalDatabase {
   setAuditLogs(logs: AuditLog[]) { setStorageObj('tsc_audit_logs', logs); }
 }
 
-const localDB = new LocalDatabase();
+export const localDB = new LocalDatabase();
 
 // Current User State simulation (for beautiful staff/admin switching inside preview)
 let CURRENT_USER_PROFILE: Profile = DEFAULT_PROFILES[0]; // Admin by default

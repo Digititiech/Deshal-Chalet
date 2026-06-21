@@ -194,6 +194,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
 
   // Questionnaire Wizard states
   const [wizardStep, setWizardStep] = React.useState<number>(1);
+const [showConfirmModal, setShowConfirmModal] = React.useState(false);
   const [selectedCity, setSelectedCity] = React.useState<string>('');
   const [customPriceMode, setCustomPriceMode] = React.useState<'auto' | 'manual'>('auto');
   const [manualPrice, setManualPrice] = React.useState<number>(0);
@@ -1447,12 +1448,34 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
 
                       <button
                         type="button"
-                        onClick={() => handleCreateBookingSubmit()}
+                        onClick={() => setShowConfirmModal(true)}
                         className="px-5 py-2 bg-emerald-600 text-white rounded-lg text-xs font-extrabold hover:bg-emerald-500 border border-emerald-500/20 cursor-pointer shadow-lg shadow-emerald-500/10 transition-colors"
                       >
                         تأكيد وحفظ الحجز وجدولة المرفق
                       </button>
                     </div>
+{showConfirmModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="bg-[#0f172a] p-6 rounded-xl shadow-lg max-w-md w-full text-right">
+      <h3 className="text-lg font-bold text-white mb-4">تأكيد الحجز</h3>
+      <p className="text-slate-300 mb-6">هل تريد حفظ حجز هذا العقار؟</p>
+      <div className="flex justify-end space-x-3 space-x-reverse">
+        <button
+          className="px-4 py-2 bg-white/10 text-slate-300 rounded hover:bg-white/20"
+          onClick={() => setShowConfirmModal(false)}
+        >
+          إلغاء
+        </button>
+        <button
+          className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-500"
+          onClick={() => { setShowConfirmModal(false); handleCreateBookingSubmit(); }}
+        >
+          تأكيد
+        </button>
+      </div>
+    </div>
+  </div>
+)}
                   </div>
                 </div>
 

@@ -119,14 +119,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Detect password recovery mode from URL hash FIRST before anything else
-      // Supabase sends: #access_token=...&type=recovery or ?type=recovery
+      // Supabase v2 PKCE flow sends: ?code=<auth_code> to the redirectTo URL
+      // Supabase implicit flow sends: #access_token=...&type=recovery
+      const searchParams = new URLSearchParams(searchStr);
+      const pkceCode = searchParams.get('code');
+      const isOnResetPath = window.location.pathname.includes('/reset-password');
+
       const isRecovery =
         hashStr.includes('type=recovery') ||
         searchStr.includes('type=recovery') ||
-        window.location.pathname.includes('/reset-password');
+        (isOnResetPath && !!pkceCode);
 
       if (isRecovery) {
         setIsRecoveryMode(true);
+      }
+
+      // PKCE flow: exchange the auth code for a session.
+      // This will trigger the PASSWORD_RECOVERY event in onAuthStateChange.
+      if (pkceCode && isSupabaseConfigured && supabase) {
+        supabase.auth.exchangeCodeForSession(pkceCode).then(({ error }) => {
+          if (error) {
+            console.error('[Auth] PKCE code exchange failed:', error.message);
+            // Show user-friendly error for expired/invalid links
+            if (error.message.toLowerCase().includes('expired') ||
+                error.message.toLowerCase().includes('invalid') ||
+                error.message.toLowerCase().includes('code')) {
+              setAuthError('انتهت صلاحية رابط إعادة تعيين كلمة المرور أو أنه غير صالح. يرجى طلب رابط جديد.');
+            } else {
+              setAuthError(translateAuthError(error.message));
+            }
+            setIsLoading(false);
+          }
+          // On success, onAuthStateChange will fire PASSWORD_RECOVERY event
+          // which sets isRecoveryMode = true and isLoading = false
+        });
+        // Clean the ?code= from URL bar so it can't be replayed
+        if (window.history.replaceState) {
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
       }
 
       if (isSupabaseConfigured && supabase) {

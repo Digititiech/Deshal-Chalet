@@ -85,14 +85,18 @@ export const PropertiesPage: React.FC = () => {
           address_details: editingProp.address_details || '',
           type: editingProp.type as any,
           status: editingProp.status as any || 'available',
-          price_full_day: Number(editingProp.price_full_day) || 200,
-          price_half_day: Number(editingProp.price_half_day) || 120,
+          price_full_day: Number(editingProp.price_full_day) || 0,
+          price_half_day: Number(editingProp.price_half_day) || 0,
+          price_weekday: Number(editingProp.price_weekday) || Number(editingProp.price_full_day) || 0,
+          price_weekend: Number(editingProp.price_weekend) || Number(editingProp.price_full_day) || 0,
+          price_holiday: Number(editingProp.price_holiday) || Number(editingProp.price_full_day) || 0,
+          discount_amount: Number(editingProp.discount_amount) || 0,
           rating: Number(editingProp.rating) || 5.0,
-          rooms: Number(editingProp.rooms) || 2,
-          amenities: editingProp.amenities || ['مكيف', 'صالة جلوس'],
-          size_sqm: Number(editingProp.size_sqm) || 150,
+          rooms: Number(editingProp.rooms) || 1,
+          amenities: editingProp.amenities || [],
+          size_sqm: Number(editingProp.size_sqm) || 0,
           image_url: editingProp.image_url || 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=800',
-          location_text: editingProp.location_text || 'مسقط، عمان'
+          location_text: editingProp.location_text || ''
         });
       }
       setIsEditing(false);
@@ -163,12 +167,16 @@ export const PropertiesPage: React.FC = () => {
                 address_details: '',
                 type: 'chalet',
                 status: 'available',
-                price_full_day: 0,
-                price_half_day: 0,
-                rating: 5.0,
-                rooms: 1,
+                price_full_day: undefined,
+                price_half_day: undefined,
+                price_weekday: undefined,
+                price_weekend: undefined,
+                price_holiday: undefined,
+                discount_amount: undefined,
+                rating: undefined,
+                rooms: undefined,
                 amenities: [],
-                size_sqm: 0,
+                size_sqm: undefined,
                 image_url: '',
                 location_text: ''
               });
@@ -314,7 +322,7 @@ export const PropertiesPage: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">سعر الإيجار لليوم الكامل (ر.ع.) *</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">سعر اليوم الكامل الأساسي (ر.ع.) *</label>
               <input 
                 type="number" 
                 required
@@ -324,12 +332,52 @@ export const PropertiesPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">سعر الإيجار لنصف اليوم (ر.ع.) *</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">سعر نصف اليوم الأساسي (ر.ع.) *</label>
               <input 
                 type="number" 
                 required
                 value={editingProp.price_half_day || ''} 
                 onChange={(e) => setEditingProp({...editingProp, price_half_day: Number(e.target.value)})}
+                className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">سعر أيام الأسبوع (ر.ع.)</label>
+              <input 
+                type="number" 
+                value={editingProp.price_weekday || ''} 
+                placeholder="تلقائي (سعر اليوم الكامل)"
+                onChange={(e) => setEditingProp({...editingProp, price_weekday: e.target.value ? Number(e.target.value) : undefined})}
+                className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">سعر عطلة نهاية الأسبوع (ر.ع.)</label>
+              <input 
+                type="number" 
+                value={editingProp.price_weekend || ''} 
+                placeholder="تلقائي (سعر اليوم الكامل)"
+                onChange={(e) => setEditingProp({...editingProp, price_weekend: e.target.value ? Number(e.target.value) : undefined})}
+                className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">سعر الأعياد والمواسم (ر.ع.)</label>
+              <input 
+                type="number" 
+                value={editingProp.price_holiday || ''} 
+                placeholder="تلقائي (سعر اليوم الكامل)"
+                onChange={(e) => setEditingProp({...editingProp, price_holiday: e.target.value ? Number(e.target.value) : undefined})}
+                className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">خصم افتراضي إن وجد (ر.ع.)</label>
+              <input 
+                type="number" 
+                value={editingProp.discount_amount || ''} 
+                placeholder="مثال: 15"
+                onChange={(e) => setEditingProp({...editingProp, discount_amount: e.target.value ? Number(e.target.value) : undefined})}
                 className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
               />
             </div>

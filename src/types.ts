@@ -42,6 +42,10 @@ export interface Property {
   status: 'available' | 'occupied' | 'maintenance';
   price_full_day: number;
   price_half_day: number;
+  price_weekday?: number;
+  price_weekend?: number;
+  price_holiday?: number;
+  discount_amount?: number;
   rating: number;
   rooms: number;
   amenities: string[];

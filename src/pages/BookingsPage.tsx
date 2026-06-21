@@ -56,13 +56,17 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
   const [validationError, setValidationError] = React.useState<{ ar: string; en: string } | null>(null);
   const [estimatedPrice, setEstimatedPrice] = React.useState<number>(0);
 
+  // Custom pricing schemas states
+  const [useHolidayRate, setUseHolidayRate] = React.useState<boolean>(false);
+  const [discountInput, setDiscountInput] = React.useState<number>(0);
+
   // Questionnaire Wizard states
   const [wizardStep, setWizardStep] = React.useState<number>(1);
   const [selectedCity, setSelectedCity] = React.useState<string>('');
   const [customPriceMode, setCustomPriceMode] = React.useState<'auto' | 'manual'>('auto');
   const [manualPrice, setManualPrice] = React.useState<number>(0);
   const [calendarViewDate, setCalendarViewDate] = React.useState<Date>(new Date());
-
+  
   // Main view preference for bookings history
   const [mainViewMode, setMainViewMode] = React.useState<'table' | 'calendar'>('table');
   const [mainCalendarDate, setMainCalendarDate] = React.useState<Date>(new Date());
@@ -111,6 +115,17 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
       setManualPrice(estimatedPrice);
     }
   }, [estimatedPrice]);
+
+  // Sync default property discount and reset holiday rate on property selection
+  React.useEffect(() => {
+    if (newBooking.property_id && properties.length > 0) {
+      const prop = properties.find(p => p.id === newBooking.property_id);
+      if (prop) {
+        setDiscountInput(prop.discount_amount || 0);
+        setUseHolidayRate(false);
+      }
+    }
+  }, [newBooking.property_id, properties]);
 
   // Helper to detect if a specific date is already booked/occupied for selected property
   const isDateBooked = (dateStr: string) => {
@@ -181,15 +196,39 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
     let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     if (diffDays < 1) diffDays = 1;
 
-    // Pricing rules: full day vs half day
-    const baseRate = newBooking.booking_type === 'full_day' 
-      ? prop.price_full_day 
-      : prop.price_half_day;
+    let baseRate = 0;
+    if (newBooking.booking_type === 'half_day') {
+      baseRate = (prop.price_half_day || 0) * diffDays;
+    } else {
+      if (useHolidayRate) {
+        const holidayRate = prop.price_holiday || prop.price_full_day || 0;
+        baseRate = diffDays * holidayRate;
+      } else {
+        // Calculate weekdays vs weekends
+        let weekdaysCount = 0;
+        let weekendsCount = 0;
+        let temp = new Date(start);
+        for (let i = 0; i < diffDays; i++) {
+          const day = temp.getDay();
+          // Weekends in GCC/Oman chalets: Thursday, Friday, Saturday
+          if (day === 4 || day === 5 || day === 6) {
+            weekendsCount++;
+          } else {
+            weekdaysCount++;
+          }
+          temp.setDate(temp.getDate() + 1);
+        }
+        const weekdayRate = prop.price_weekday || prop.price_full_day || 0;
+        const weekendRate = prop.price_weekend || prop.price_full_day || 0;
+        baseRate = (weekdaysCount * weekdayRate) + (weekendsCount * weekendRate);
+      }
+    }
 
-    // Apply multiplier if settings multipliers exist (or fallback to normal multiplier)
-    setEstimatedPrice(baseRate * diffDays);
+    // Apply discount
+    const finalPrice = Math.max(0, baseRate - (discountInput || 0));
+    setEstimatedPrice(finalPrice);
 
-  }, [newBooking, properties]);
+  }, [newBooking, properties, useHolidayRate, discountInput]);
 
   const handleCreateBookingSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -924,19 +963,66 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                       <p>• نمط الحجز: <span className="text-blue-300">{newBooking.booking_type === 'full_day' ? 'يوم كامل ومبيت' : 'نصف يوم بدون هبوط'}</span></p>
                       <p>• الفترات: <span className="text-slate-100 font-mono font-bold">{newBooking.check_in}</span> إلى <span className="text-slate-100 font-mono font-bold">{newBooking.check_out}</span></p>
                       {(() => {
-                        if (!newBooking.check_in || !newBooking.check_out) return null;
+                        if (!newBooking.check_in || !newBooking.check_out || !currentProp) return null;
                         const start = new Date(newBooking.check_in);
                         const end = new Date(newBooking.check_out);
                         const diffTime = Math.abs(end.getTime() - start.getTime());
                         let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         if (diffDays < 1) diffDays = 1;
+
+                        let weekdaysCount = 0;
+                        let weekendsCount = 0;
+                        let temp = new Date(start);
+                        for (let i = 0; i < diffDays; i++) {
+                          const day = temp.getDay();
+                          if (day === 4 || day === 5 || day === 6) {
+                            weekendsCount++;
+                          } else {
+                            weekdaysCount++;
+                          }
+                          temp.setDate(temp.getDate() + 1);
+                        }
+
+                        const wdayRate = currentProp.price_weekday || currentProp.price_full_day || 0;
+                        const wendRate = currentProp.price_weekend || currentProp.price_full_day || 0;
+                        const holRate = currentProp.price_holiday || currentProp.price_full_day || 0;
+
                         return (
-                          <p className="mt-1 flex items-center gap-1 text-[11px]">
-                            <span>• مجموع الأيام المراد حجزها:</span>
-                            <span className="text-emerald-400 font-black font-mono text-xs bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/20">
-                              {diffDays} {diffDays === 1 ? 'يوم واحد' : diffDays === 2 ? 'يومين' : `${diffDays} أيام`}
-                            </span>
-                          </p>
+                          <div className="mt-2 space-y-1 bg-white/5 p-2 rounded-lg border border-white/5 text-[11px] text-slate-350">
+                            <div className="flex justify-between">
+                              <span>• عدد الأيام:</span>
+                              <span className="text-emerald-400 font-extrabold">{diffDays} يوم</span>
+                            </div>
+                            {newBooking.booking_type === 'full_day' ? (
+                              <>
+                                <div className="flex justify-between">
+                                  <span>• أيام وسط الأسبوع:</span>
+                                  <span>{weekdaysCount} يوم × {wdayRate} ر.ع.</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>• عطلة نهاية الأسبوع:</span>
+                                  <span>{weekendsCount} يوم × {wendRate} ر.ع.</span>
+                                </div>
+                                {useHolidayRate && (
+                                  <div className="flex justify-between text-amber-400 font-bold border-t border-white/5 pt-1 mt-1">
+                                    <span>• سعر الإجازات/المواسم المطبق:</span>
+                                    <span>{holRate} ر.ع.</span>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="flex justify-between">
+                                <span>• تعرفة نصف اليوم:</span>
+                                <span>{currentProp.price_half_day} ر.ع.</span>
+                              </div>
+                            )}
+                            {discountInput > 0 && (
+                              <div className="flex justify-between text-rose-400 font-bold border-t border-white/5 pt-1 mt-1">
+                                <span>• الخصم المباشر المطبق:</span>
+                                <span>-{discountInput} ر.ع.</span>
+                              </div>
+                            )}
+                          </div>
                         );
                       })()}
                     </div>
@@ -953,9 +1039,47 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                 </div>
 
                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-4">
+                  {/* Custom pricing schema fields: holiday pricing & discount */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/40 p-4 rounded-xl border border-white/5">
+                    {/* Holiday Rate Toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-slate-200 block">تفعيل تسعيرة الأعياد والمناسبات</span>
+                        <span className="text-[10px] text-slate-400">تطبيق سعر الإجازات الخاص بالعقار</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setUseHolidayRate(!useHolidayRate)}
+                        className={`w-12 h-6 rounded-full transition-all relative cursor-pointer ${
+                          useHolidayRate ? 'bg-blue-600' : 'bg-slate-800'
+                        }`}
+                      >
+                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${
+                          useHolidayRate ? 'right-7' : 'right-1'
+                        }`} />
+                      </button>
+                    </div>
+
+                    {/* Discount Input */}
+                    <div className="space-y-1.5 text-right">
+                      <label className="block text-xs font-bold text-slate-350">الخصم المباشر المطبق (ر.ع.)</label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold text-xs pointer-events-none">ر.ع.</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={discountInput || ''}
+                          onChange={(e) => setDiscountInput(e.target.value ? Number(e.target.value) : 0)}
+                          placeholder="مثال: 15"
+                          className="w-full bg-slate-950/40 border border-white/10 text-white rounded-lg text-xs py-1.5 pl-9 pr-3 outline-none focus:border-blue-500 font-mono font-bold text-center"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="text-right">
                     <span className="text-[10px] font-bold text-slate-400">تعديل أو قبول المبلغ المستحق مخصصاً</span>
-                    <p className="text-[11px] text-slate-300">حدد ما إذا كنت تريد اعتماد المبلغ التلقائي المسعر للعقار، أو إدخال مبلغ مخصص يدوياً مخصوماً أو معدلاً:</p>
+                    <p className="text-[11px] text-slate-300">حدد ما إذا كنت تريد اعتماد المبلغ التلقائي المسعر للعقار (المحسوب أعلاه)، أو إدخال مبلغ مخصص يدوياً مخصوماً أو معدلاً:</p>
                   </div>
 
                   {/* Mode Buttons selection */}

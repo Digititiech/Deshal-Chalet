@@ -82,8 +82,10 @@ export const PropertiesPage: React.FC = () => {
     e.preventDefault();
     if (!editingProp) return;
 
+    const finalCity = editingProp.city || editingProp.state_province || '';
+
     // Validate fields
-    if (!editingProp.name || !editingProp.ref_code || !editingProp.city || !editingProp.type) {
+    if (!editingProp.name || !editingProp.ref_code || !finalCity || !editingProp.type) {
       alert('يرجى ملأ جميع الخانات الإلزامية.');
       return;
     }
@@ -100,6 +102,7 @@ export const PropertiesPage: React.FC = () => {
     try {
       const finalProp: Property = {
         ...(editingProp as Property),
+        city: finalCity,
         amenities: amenitiesList,
         features: featuresList
       };
@@ -110,7 +113,7 @@ export const PropertiesPage: React.FC = () => {
         await DatabaseService.createProperty({
           name: editingProp.name,
           ref_code: editingProp.ref_code,
-          city: editingProp.city,
+          city: finalCity,
           state_province: editingProp.state_province || '',
           country: editingProp.country || '',
           address_details: editingProp.address_details || '',
@@ -310,7 +313,7 @@ export const PropertiesPage: React.FC = () => {
           {/* Section 1: Basic Info */}
           <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
             <span className="text-xs font-bold text-blue-450 block border-b border-white/5 pb-1">المعلومات الأساسية للمرفق</span>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-350 mb-1">
                   اسم العقار بالكامل <span className="text-red-500 font-bold mx-0.5">*</span>
@@ -348,42 +351,6 @@ export const PropertiesPage: React.FC = () => {
                   <option value="chalet" className="bg-slate-900 text-white">شاليه فخم وطبيعي</option>
                   <option value="resort" className="bg-slate-900 text-white">منتجع ترفيهي متكامل</option>
                   <option value="camp" className="bg-slate-900 text-white">مخيم فلكي مفتوح</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-355 mb-1">
-                  المنطقة الجغرافية الرئيسية <span className="text-red-500 font-bold mx-0.5">*</span>
-                </label>
-                <select
-                  value={editingProp.city || 'muscat'}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    let state_p = '';
-                    let ctry = 'سلطنة عمان';
-                    if (val === 'muscat') state_p = 'محافظة مسقط';
-                    else if (val === 'salalah') state_p = 'محافظة ظفار';
-                    else if (val === 'nizwa') state_p = 'محافظة الداخلية';
-                    else {
-                      ctry = 'المملكة العربية السعودية';
-                      if (val === 'riyadh') state_p = 'منطقة الرياض';
-                      else if (val === 'abha') state_p = 'منطقة عسير';
-                      else if (val === 'alula') state_p = 'منطقة المدينة المنورة';
-                    }
-                    setEditingProp({
-                      ...editingProp,
-                      city: val,
-                      state_province: state_p,
-                      country: ctry
-                    });
-                  }}
-                  className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
-                >
-                  <option value="muscat" className="bg-slate-900 text-white">مسقط (محافظة مسقط)</option>
-                  <option value="salalah" className="bg-slate-900 text-white">صلالة (محافظة ظفار)</option>
-                  <option value="nizwa" className="bg-slate-900 text-white">نزوى (محافظة الداخلية)</option>
-                  <option value="riyadh" className="bg-slate-900 text-white">الرياض (منطقة الرياض)</option>
-                  <option value="abha" className="bg-slate-900 text-white">أبها (منطقة عسير)</option>
-                  <option value="alula" className="bg-slate-900 text-white">العلا (منطقة المدينة المنورة)</option>
                 </select>
               </div>
             </div>
@@ -489,7 +456,22 @@ export const PropertiesPage: React.FC = () => {
                   type="text" 
                   required
                   value={editingProp.state_province || ''} 
-                  onChange={(e) => setEditingProp({...editingProp, state_province: e.target.value})}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    let cityVal = val.trim().toLowerCase();
+                    if (val.includes('مسقط')) cityVal = 'muscat';
+                    else if (val.includes('ظفار') || val.includes('صلالة')) cityVal = 'salalah';
+                    else if (val.includes('الداخلية') || val.includes('نزوى')) cityVal = 'nizwa';
+                    else if (val.includes('الرياض')) cityVal = 'riyadh';
+                    else if (val.includes('عسير') || val.includes('أبها')) cityVal = 'abha';
+                    else if (val.includes('العلا') || val.includes('المدينة')) cityVal = 'alula';
+                    
+                    setEditingProp({
+                      ...editingProp,
+                      state_province: val,
+                      city: cityVal
+                    });
+                  }}
                   className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
                   placeholder="محافظة مسقط"
                 />

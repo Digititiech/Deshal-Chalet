@@ -43,6 +43,11 @@ function DashboardShell() {
   const [forceOpenBookingAdd, setForceOpenBookingAdd] = React.useState<number>(0);
   const [isSigningOut, setIsSigningOut] = React.useState(false);
 
+  // Close notifications dropdown when switching tabs
+  React.useEffect(() => {
+    setShowNotificationsDropdown(false);
+  }, [currentTab]);
+
   const currentUser = getCurrentlySimulatedUser();
 
   // Sync the simulated user to the authenticated profile on first load
@@ -231,7 +236,7 @@ function DashboardShell() {
               </button>
 
               {showNotificationsDropdown && (
-                <div className="absolute left-0 mt-2 w-80 frosted border border-white/10 rounded-2xl shadow-xl z-50 py-3 overflow-hidden text-right">
+                <div className="absolute left-0 mt-2 w-80 bg-[#0f172a]/95 frosted border border-white/10 rounded-2xl shadow-xl z-50 py-3 overflow-hidden text-right">
                   <div className="px-4 pb-2 border-b border-white/10 flex items-center justify-between">
                     <h4 className="text-xs font-black text-white">سجل الإشعارات</h4>
                     <span className="text-[9px] bg-white/10 px-2 py-0.5 rounded text-blue-400 font-bold">تنبيهات حية</span>

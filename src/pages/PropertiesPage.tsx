@@ -114,6 +114,9 @@ export const PropertiesPage: React.FC = () => {
 
   const cityLabels: Record<string, string> = {
     all: 'كل الفروع والمناطق',
+    muscat: 'مسقط',
+    salalah: 'صلالة',
+    nizwa: 'نزوى',
     riyadh: 'الرياض',
     abha: 'أبها',
     alula: 'العلا',
@@ -154,20 +157,20 @@ export const PropertiesPage: React.FC = () => {
               setEditingProp({
                 name: '',
                 ref_code: 'REF-' + Math.floor(1000 + Math.random() * 9000),
-                city: 'riyadh',
-                state_province: 'منطقة الرياض',
-                country: 'المملكة العربية السعودية',
-                address_details: 'حي النرجس، شارع عثمان بن عفان',
+                city: '',
+                state_province: '',
+                country: 'سلطنة عمان',
+                address_details: '',
                 type: 'chalet',
                 status: 'available',
-                price_full_day: 300,
-                price_half_day: 180,
+                price_full_day: 0,
+                price_half_day: 0,
                 rating: 5.0,
-                rooms: 2,
-                amenities: ['مسبح خاص', 'مطبخ كامل', 'جلسة فخمة'],
-                size_sqm: 350,
-                image_url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=800',
-                location_text: 'حي النرجس، الرياض'
+                rooms: 1,
+                amenities: [],
+                size_sqm: 0,
+                image_url: '',
+                location_text: ''
               });
               setIsEditing(true);
             }}
@@ -267,14 +270,20 @@ export const PropertiesPage: React.FC = () => {
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1">المنطقة الجغرافية للفلترة السريعة *</label>
               <select
-                value={editingProp.city || 'riyadh'}
+                value={editingProp.city || 'muscat'}
                 onChange={(e) => {
                   const val = e.target.value;
                   let state_p = '';
-                  let ctry = 'المملكة العربية السعودية';
-                  if (val === 'riyadh') state_p = 'منطقة الرياض';
-                  else if (val === 'abha') state_p = 'منطقة عسير';
-                  else if (val === 'alula') state_p = 'منطقة المدينة المنورة';
+                  let ctry = 'سلطنة عمان';
+                  if (val === 'muscat') state_p = 'محافظة مسقط';
+                  else if (val === 'salalah') state_p = 'محافظة ظفار';
+                  else if (val === 'nizwa') state_p = 'محافظة الداخلية';
+                  else {
+                    ctry = 'المملكة العربية السعودية';
+                    if (val === 'riyadh') state_p = 'منطقة الرياض';
+                    else if (val === 'abha') state_p = 'منطقة عسير';
+                    else if (val === 'alula') state_p = 'منطقة المدينة المنورة';
+                  }
                   setEditingProp({
                     ...editingProp,
                     city: val,
@@ -284,6 +293,9 @@ export const PropertiesPage: React.FC = () => {
                 }}
                 className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
               >
+                <option value="muscat" className="bg-slate-900 text-white">مسقط (محافظة مسقط)</option>
+                <option value="salalah" className="bg-slate-900 text-white">صلالة (محافظة ظفار)</option>
+                <option value="nizwa" className="bg-slate-900 text-white">نزوى (محافظة الداخلية)</option>
                 <option value="riyadh" className="bg-slate-900 text-white">الرياض (منطقة الرياض)</option>
                 <option value="abha" className="bg-slate-900 text-white">أبها (منطقة عسير)</option>
                 <option value="alula" className="bg-slate-900 text-white">العلا (منطقة المدينة المنورة)</option>
@@ -363,7 +375,7 @@ export const PropertiesPage: React.FC = () => {
                   value={editingProp.country || ''} 
                   onChange={(e) => setEditingProp({...editingProp, country: e.target.value})}
                   className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
-                  placeholder="مثال: المملكة العربية السعودية"
+                  placeholder="مثال: سلطنة عمان"
                 />
               </div>
               <div>
@@ -374,7 +386,7 @@ export const PropertiesPage: React.FC = () => {
                   value={editingProp.state_province || ''} 
                   onChange={(e) => setEditingProp({...editingProp, state_province: e.target.value})}
                   className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
-                  placeholder="مثال: منطقة الرياض، ظفار"
+                  placeholder="مثال: محافظة مسقط، ظفار"
                 />
               </div>
               <div>
@@ -385,7 +397,7 @@ export const PropertiesPage: React.FC = () => {
                   value={editingProp.city || ''} 
                   onChange={(e) => setEditingProp({...editingProp, city: e.target.value})}
                   className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
-                  placeholder="مثال: الرياض"
+                  placeholder="مثال: مسقط، صلالة"
                 />
               </div>
               <div>
@@ -396,7 +408,7 @@ export const PropertiesPage: React.FC = () => {
                   value={editingProp.address_details || ''} 
                   onChange={(e) => setEditingProp({...editingProp, address_details: e.target.value})}
                   className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
-                  placeholder="مثال: حي الثمامة، شارع التميز"
+                  placeholder="مثال: السيب، سور آل حديد"
                 />
               </div>
             </div>
@@ -407,7 +419,7 @@ export const PropertiesPage: React.FC = () => {
                 value={editingProp.location_text || ''} 
                 onChange={(e) => setEditingProp({...editingProp, location_text: e.target.value})}
                 className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
-                placeholder="مثال: الثمامة، الرياض"
+                placeholder="مثال: مسقط، السيب"
               />
             </div>
           </div>

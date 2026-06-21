@@ -93,33 +93,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize auth state on mount
   useEffect(() => {
+    let cleanupFn: (() => void) | undefined;
+
     const init = async () => {
       setIsLoading(true);
 
-      // Check if we are landing on the reset-password path or have recovery hash on mount
-      if (
-        window.location.pathname.includes('/reset-password') ||
-        window.location.hash.includes('type=recovery') ||
-        window.location.hash.includes('access_token')
-      ) {
+      // Detect password recovery mode from URL hash FIRST before anything else
+      // Supabase sends: #access_token=...&type=recovery or ?type=recovery
+      const hashStr = window.location.hash;
+      const searchStr = window.location.search;
+      const isRecovery =
+        hashStr.includes('type=recovery') ||
+        searchStr.includes('type=recovery') ||
+        window.location.pathname.includes('/reset-password');
+
+      if (isRecovery) {
         setIsRecoveryMode(true);
       }
 
       if (isSupabaseConfigured && supabase) {
-        // 1. Get existing Supabase session
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const authUser = { id: session.user.id, email: session.user.email! };
-          setUser(authUser);
-          const p = await loadProfile(session.user.id);
-          setProfile(p);
-        }
-
-        // 2. Subscribe to auth state changes
+        // Subscribe to auth state changes BEFORE getting session
+        // This ensures PASSWORD_RECOVERY event is captured correctly
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (event === 'PASSWORD_RECOVERY') {
+            // Recovery event: show reset-password form, do NOT set user session
             setIsRecoveryMode(true);
+            setIsLoading(false);
+            return;
           }
+
+          if (event === 'SIGNED_IN' && (isRecovery || window.location.hash.includes('type=recovery'))) {
+            // SIGNED_IN fires alongside PASSWORD_RECOVERY — ignore it in recovery mode
+            setIsLoading(false);
+            return;
+          }
+
           if (session?.user) {
             const authUser = { id: session.user.id, email: session.user.email! };
             setUser(authUser);
@@ -132,8 +140,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsLoading(false);
         });
 
+        cleanupFn = () => subscription.unsubscribe();
+
+        // 1. Get existing Supabase session (only use it if NOT in recovery mode)
+        if (!isRecovery) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const authUser = { id: session.user.id, email: session.user.email! };
+            setUser(authUser);
+            const p = await loadProfile(session.user.id);
+            setProfile(p);
+          }
+        }
+
         setIsLoading(false);
-        return () => subscription.unsubscribe();
       } else {
         // Local fallback auth
         const localUser = getLocalAuthUser();
@@ -147,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     init();
+    return () => { if (cleanupFn) cleanupFn(); };
   }, []);
 
   // -------------------------------------------------------

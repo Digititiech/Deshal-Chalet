@@ -28,6 +28,18 @@ const DEFAULT_SETTINGS: Settings = {
 
 const DEFAULT_NOTIFICATIONS: Notification[] = [];
 
+// Helper to generate a valid RFC4122 v4 UUID
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // Helper to write/read to localStorage with fallback safety
 const getStorageObj = <T>(key: string, defaultVal: T): T => {
   try {
@@ -233,7 +245,10 @@ export const DatabaseService = {
             profile_id: id,
             property_id: propId
           }));
-          await supabase.from('user_properties').insert(insertData);
+          const { error: upError } = await supabase.from('user_properties').insert(insertData);
+          if (upError) {
+            throw new Error(upError.message);
+          }
         }
       }
     } else {
@@ -275,13 +290,19 @@ export const DatabaseService = {
       }
 
       // 4. Update user_properties mappings
-      await supabase.from('user_properties').delete().eq('profile_id', profile.id);
+      const { error: delError } = await supabase.from('user_properties').delete().eq('profile_id', profile.id);
+      if (delError) {
+        throw new Error(delError.message);
+      }
       if (profile.assigned_property_ids && profile.assigned_property_ids.length > 0) {
         const insertData = profile.assigned_property_ids.map(propId => ({
           profile_id: profile.id,
           property_id: propId
         }));
-        await supabase.from('user_properties').insert(insertData);
+        const { error: insError } = await supabase.from('user_properties').insert(insertData);
+        if (insError) {
+          throw new Error(insError.message);
+        }
       }
     } else {
       const current = localDB.getProfiles();
@@ -316,14 +337,17 @@ export const DatabaseService = {
   },
 
   async createProperty(prop: Omit<Property, 'id' | 'created_at'>): Promise<Property> {
-    const id = 'prop-' + Math.random().toString(36).substr(2, 9);
+    const id = generateUUID();
     const newProp: Property = {
       ...prop,
       id,
       created_at: new Date().toISOString()
     };
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('properties').insert(newProp);
+      const { error } = await supabase.from('properties').insert(newProp);
+      if (error) {
+        throw new Error(error.message);
+      }
     }
     const current = localDB.getProperties();
     localDB.setProperties([...current, newProp]);
@@ -334,7 +358,10 @@ export const DatabaseService = {
   async updateProperty(prop: Property): Promise<Property> {
     const updated = { ...prop, updated_at: new Date().toISOString() };
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('properties').update(updated).eq('id', prop.id);
+      const { error } = await supabase.from('properties').update(updated).eq('id', prop.id);
+      if (error) {
+        throw new Error(error.message);
+      }
     }
     const current = localDB.getProperties();
     localDB.setProperties(current.map(p => p.id === prop.id ? updated : p));
@@ -379,7 +406,7 @@ export const DatabaseService = {
       throw new Error(check.reasonAr);
     }
 
-    const id = 'b-' + Math.random().toString(36).substr(2, 9);
+    const id = generateUUID();
     const ref_code = '#CH-' + Math.floor(100 + Math.random() * 900);
     const newBooking: Booking = {
       ...booking,
@@ -419,7 +446,10 @@ export const DatabaseService = {
 
     const updated = { ...booking, updated_at: new Date().toISOString() };
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('bookings').update(updated).eq('id', booking.id);
+      const { error } = await supabase.from('bookings').update(updated).eq('id', booking.id);
+      if (error) {
+        throw new Error(error.message);
+      }
     }
     const current = localDB.getBookings();
     localDB.setBookings(current.map(b => b.id === booking.id ? updated : b));
@@ -446,7 +476,10 @@ export const DatabaseService = {
 
   async deleteBooking(id: string): Promise<void> {
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('bookings').delete().eq('id', id);
+      const { error } = await supabase.from('bookings').delete().eq('id', id);
+      if (error) {
+        throw new Error(error.message);
+      }
     }
     const current = localDB.getBookings();
     localDB.setBookings(current.filter(b => b.id !== id));

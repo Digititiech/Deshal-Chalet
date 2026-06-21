@@ -7,19 +7,33 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-type LoginView = 'login' | 'forgot_password' | 'forgot_success';
+type LoginView = 'login' | 'forgot_password' | 'forgot_success' | 'reset_password' | 'reset_success';
 
-export const LoginPage: React.FC = () => {
-  const { signIn, sendPasswordResetEmail } = useAuth();
+interface LoginPageProps {
+  forceView?: LoginView;
+}
+
+export const LoginPage: React.FC<LoginPageProps> = ({ forceView }) => {
+  const { signIn, sendPasswordResetEmail, updatePassword, setIsRecoveryMode } = useAuth();
 
   // Form state
-  const [view, setView] = useState<LoginView>('login');
+  const [view, setView] = useState<LoginView>(forceView || 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync forceView changes
+  React.useEffect(() => {
+    if (forceView) {
+      setView(forceView);
+    }
+  }, [forceView]);
 
   // -------------------------------------------------------
   // Handle Login Submit
@@ -66,6 +80,44 @@ export const LoginPage: React.FC = () => {
       setError(resetError);
     } else {
       setView('forgot_success');
+    }
+  };
+
+  // -------------------------------------------------------
+  // Handle Reset Password Submit
+  // -------------------------------------------------------
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!newPassword.trim()) {
+      setError('يرجى إدخال كلمة المرور الجديدة.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('كلمات المرور غير متطابقة.');
+      return;
+    }
+
+    setIsLoading(true);
+    const { error: resetError } = await updatePassword(newPassword.trim());
+    setIsLoading(false);
+
+    if (resetError) {
+      setError(resetError);
+    } else {
+      setView('reset_success');
+    }
+  };
+
+  const handleResetSuccessComplete = () => {
+    setIsRecoveryMode(false);
+    if (window.history.replaceState) {
+      window.history.replaceState({}, document.title, '/');
     }
   };
 
@@ -357,6 +409,133 @@ export const LoginPage: React.FC = () => {
                   className="w-full py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 shadow-lg transition-all cursor-pointer"
                 >
                   العودة إلى تسجيل الدخول
+                </button>
+              </div>
+            )}
+
+            {/* ══════════════ RESET PASSWORD VIEW ══════════════ */}
+            {view === 'reset_password' && (
+              <>
+                <div className="mb-7">
+                  <h2 className="text-xl font-bold text-white">إعادة تعيين كلمة المرور</h2>
+                  <p className="text-slate-400 text-sm mt-1 leading-relaxed">
+                    أدخل كلمة المرور الجديدة الخاصة بحسابك أدناه للوصول إلى النظام.
+                  </p>
+                </div>
+
+                {/* Error Alert */}
+                {error && (
+                  <div className="mb-5 flex items-start gap-3 bg-rose-500/10 border border-rose-500/30 rounded-xl p-3.5 animate-fadeIn">
+                    <AlertCircle className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-rose-300 text-xs font-medium leading-relaxed">{error}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleResetPassword} className="space-y-5" noValidate>
+
+                  {/* New Password Field */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="new-password" className="block text-xs font-bold text-slate-300">
+                      كلمة المرور الجديدة
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="new-password"
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={e => { setNewPassword(e.target.value); setError(null); }}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                        dir="ltr"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 focus:bg-white/8 transition-all text-left"
+                        style={{ direction: 'ltr', textAlign: 'left', paddingRight: '2.75rem', paddingLeft: '2.75rem' }}
+                        disabled={isLoading}
+                      />
+                      <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(v => !v)}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-400 transition-colors cursor-pointer"
+                        tabIndex={-1}
+                        aria-label={showNewPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                      >
+                        {showNewPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm New Password Field */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="confirm-password" className="block text-xs font-bold text-slate-300">
+                      تأكيد كلمة المرور الجديدة
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="confirm-password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={e => { setConfirmPassword(e.target.value); setError(null); }}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                        dir="ltr"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 focus:bg-white/8 transition-all text-left"
+                        style={{ direction: 'ltr', textAlign: 'left', paddingRight: '2.75rem', paddingLeft: '2.75rem' }}
+                        disabled={isLoading}
+                      />
+                      <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(v => !v)}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-400 transition-colors cursor-pointer"
+                        tabIndex={-1}
+                        aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                      >
+                        {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    id="reset-password-submit-btn"
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-900/30 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 cursor-pointer mt-2"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>جاري حفظ كلمة المرور...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>حفظ كلمة المرور الجديدة ودخول النظام</span>
+                      </>
+                    )}
+                  </button>
+
+                </form>
+              </>
+            )}
+
+            {/* ══════════════ RESET SUCCESS VIEW ══════════════ */}
+            {view === 'reset_success' && (
+              <div className="text-center py-4 animate-fadeIn">
+                <div className="flex justify-center mb-5">
+                  <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center ring-2 ring-emerald-500/30">
+                    <CheckCircle className="w-8 h-8 text-emerald-400" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">تم تغيير كلمة المرور بنجاح!</h2>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6 text-right">
+                  تم تحديث كلمة المرور الخاصة بحسابك بنجاح. يمكنك الآن الانتقال مباشرة إلى لوحة التحكم الإدارية.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResetSuccessComplete}
+                  className="w-full py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 shadow-lg transition-all cursor-pointer"
+                >
+                  الدخول إلى لوحة التحكم
                 </button>
               </div>
             )}

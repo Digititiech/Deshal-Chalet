@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Profile } from '../types';
-import { DEFAULT_PROFILES, localDB } from '../services/db';
+import { DEFAULT_PROFILES, localDB, DatabaseService } from '../services/db';
 
 // -------------------------------------------------------
 // Auth Session Types
@@ -25,6 +25,9 @@ export interface AuthContextValue extends AuthSession {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<{ error: string | null }>;
+  isRecoveryMode: boolean;
+  setIsRecoveryMode: (val: boolean) => void;
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
 }
 
 // -------------------------------------------------------
@@ -66,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   // Load profile from profiles list by user id
   const loadProfile = async (userId: string): Promise<Profile | null> => {
@@ -92,6 +96,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const init = async () => {
       setIsLoading(true);
 
+      // Check if we are landing on the reset-password path on mount
+      if (window.location.pathname.includes('/reset-password')) {
+        setIsRecoveryMode(true);
+      }
+
       if (isSupabaseConfigured && supabase) {
         // 1. Get existing Supabase session
         const { data: { session } } = await supabase.auth.getSession();
@@ -104,6 +113,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // 2. Subscribe to auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            setIsRecoveryMode(true);
+          }
           if (session?.user) {
             const authUser = { id: session.user.id, email: session.user.email! };
             setUser(authUser);
@@ -215,6 +227,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: null };
   };
 
+  // -------------------------------------------------------
+  // updatePassword
+  // -------------------------------------------------------
+  const updatePassword = async (password: string): Promise<{ error: string | null }> => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        return { error: translateAuthError(error.message) };
+      }
+      return { error: null };
+    }
+
+    // Offline mode: update the current simulated user's password
+    if (profile) {
+      try {
+        await DatabaseService.updateProfile({
+          ...profile,
+          password: password,
+        });
+        return { error: null };
+      } catch (err: any) {
+        return { error: err.message || 'تعذر تحديث كلمة المرور في قاعدة البيانات المحلية.' };
+      }
+    }
+    return { error: 'تعذر تحديث كلمة المرور لعدم وجود مستخدم نشط.' };
+  };
+
   const value: AuthContextValue = {
     user,
     profile,
@@ -223,6 +262,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signOut,
     sendPasswordResetEmail,
+    isRecoveryMode,
+    setIsRecoveryMode,
+    updatePassword,
   };
 
   return (

@@ -311,7 +311,7 @@ function DashboardShell() {
 // Root Guard: show Login or Dashboard based on auth state
 // ─────────────────────────────────────────────────────────
 function AppGuard() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isRecoveryMode } = useAuth();
 
   if (isLoading) {
     return (
@@ -327,6 +327,10 @@ function AppGuard() {
         </div>
       </div>
     );
+  }
+
+  if (isRecoveryMode) {
+    return <LoginPage forceView="reset_password" />;
   }
 
   return isAuthenticated ? <DashboardShell /> : <LoginPage />;

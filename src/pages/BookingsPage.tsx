@@ -25,16 +25,74 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { Booking, Property } from '../types';
+import { Booking, Property, Settings } from '../types';
 import { DatabaseService, checkOverlappingBookings, getCurrentlySimulatedUser } from '../services/db';
 
 interface BookingsPageProps {
   forceOpenAdd?: number;
+  initialPropertyId?: string;
 }
 
-export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
+const parseTimeToFloat = (timeStr: string): number => {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  return h + (m || 0) / 60;
+};
+
+const VisualTimeline: React.FC<{
+  dateStr: string;
+  bookedRanges: Array<{ guestName: string; startHour: number; endHour: number }>;
+  selectedStartHour: number;
+  selectedEndHour: number;
+}> = ({ dateStr, bookedRanges, selectedStartHour, selectedEndHour }) => {
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  
+  return (
+    <div className="space-y-2 select-none text-right">
+      <span className="text-[11px] text-slate-300 font-bold block">مخطط إشغال اليوم المختار ({dateStr}):</span>
+      <div className="flex border border-white/10 rounded-xl overflow-hidden h-8 bg-slate-900/50">
+        {hours.map(h => {
+          const isBooked = bookedRanges.some(r => h >= r.startHour && h < r.endHour);
+          const isSelected = h >= selectedStartHour && h < selectedEndHour;
+          
+          let bgClass = "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400/40";
+          if (isBooked) {
+            bgClass = "bg-rose-500/30 text-rose-350 border-r border-rose-500/20";
+          } else if (isSelected) {
+            bgClass = "bg-blue-600 text-white font-bold";
+          }
+          
+          return (
+            <div 
+              key={h} 
+              className={`flex-1 flex items-center justify-center text-[9px] font-mono border-l border-white/5 transition-all ${bgClass}`}
+              title={isBooked ? "فترة محجوزة مسبقاً" : isSelected ? "اختيارك الحالي" : `الساعة ${h}:00 متاحة`}
+            >
+              {h}
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between text-[9px] text-slate-400 px-1 font-mono">
+        <span>00:00</span>
+        <span>06:00</span>
+        <span>12:00</span>
+        <span>18:00</span>
+        <span>24:00</span>
+      </div>
+      <div className="flex gap-4 justify-end text-[9px] font-semibold">
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-blue-600" /> اختيارك الحالي</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-rose-500/30" /> محجوز مسبقاً</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-emerald-500/10" /> متاح شاغر</span>
+      </div>
+    </div>
+  );
+};
+
+export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initialPropertyId }) => {
   const [properties, setProperties] = React.useState<Property[]>([]);
   const [bookings, setBookings] = React.useState<Booking[]>([]);
+  const [settings, setSettings] = React.useState<Settings | null>(null);
   
   // Controls
   const [isAdding, setIsAdding] = React.useState(false);
@@ -51,6 +109,8 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
     check_in: '',
     check_out: '',
     booking_type: 'full_day' as 'full_day' | 'half_day',
+    check_in_time: '08:00',
+    check_out_time: '18:00',
   });
 
   const [validationError, setValidationError] = React.useState<{ ar: string; en: string } | null>(null);
@@ -75,12 +135,15 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
 
   const currentUser = getCurrentlySimulatedUser();
   const isBookingStaff = currentUser.role === 'booking_staff';
+  const currencySymbol = settings?.currency_name || 'ر.ع.';
 
   const loadData = async () => {
     const props = await DatabaseService.getProperties();
     const books = await DatabaseService.getBookings();
+    const settingsData = await DatabaseService.getSettings();
     setProperties(props);
     setBookings(books);
+    setSettings(settingsData);
 
     // Initial property ID for form if empty
     if (props.length > 0 && !newBooking.property_id) {
@@ -92,8 +155,22 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
     if (forceOpenAdd && forceOpenAdd > 0) {
       setIsAdding(true);
       setValidationError(null);
+      if (initialPropertyId && properties.length > 0) {
+        const prop = properties.find(p => p.id === initialPropertyId);
+        if (prop) {
+          setNewBooking(prev => ({
+            ...prev,
+            property_id: initialPropertyId,
+            booking_type: 'full_day',
+            check_in: '',
+            check_out: ''
+          }));
+          setSelectedCity(prop.city);
+          setWizardStep(3); // Start directly at booking type select
+        }
+      }
     }
-  }, [forceOpenAdd]);
+  }, [forceOpenAdd, initialPropertyId, properties]);
 
   React.useEffect(() => {
     loadData();
@@ -127,13 +204,13 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
     }
   }, [newBooking.property_id, properties]);
 
-  // Helper to detect if a specific date is already booked/occupied for selected property
-  const isDateBooked = (dateStr: string) => {
-    if (!newBooking.property_id) return false;
+  // Helper to determine the status of a specific date for selected property
+  const getDateBookingStatus = (dateStr: string): 'available' | 'partial' | 'booked' => {
+    if (!newBooking.property_id) return 'available';
     const targetDate = new Date(dateStr);
     targetDate.setHours(0, 0, 0, 0);
 
-    return bookings.some(b => {
+    const dayBookings = bookings.filter(b => {
       if (b.property_id !== newBooking.property_id) return false;
       if (b.status === 'cancelled') return false;
 
@@ -145,6 +222,19 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
 
       return targetDate >= checkInDate && targetDate <= checkOutDate;
     });
+
+    if (dayBookings.length === 0) return 'available';
+
+    // If any booking on this day is a full day booking, it is fully booked
+    if (dayBookings.some(b => b.booking_type === 'full_day')) {
+      return 'booked';
+    }
+
+    return 'partial';
+  };
+
+  const isDateBooked = (dateStr: string) => {
+    return getDateBookingStatus(dateStr) === 'booked';
   };
 
   // Recalculate price estimation and validate date overlaps in real-time
@@ -158,8 +248,15 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
     const prop = properties.find(p => p.id === newBooking.property_id);
     if (!prop) return;
 
-    const start = new Date(newBooking.check_in);
-    const end = new Date(newBooking.check_out);
+    const startStr = newBooking.booking_type === 'half_day'
+      ? `${newBooking.check_in}T${newBooking.check_in_time || '08:00'}:00`
+      : `${newBooking.check_in}T00:00:00`;
+    const endStr = newBooking.booking_type === 'half_day'
+      ? `${newBooking.check_out}T${newBooking.check_out_time || '18:00'}:00`
+      : `${newBooking.check_out}T00:00:00`;
+
+    const start = new Date(startStr);
+    const end = new Date(endStr);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       setValidationError(null);
@@ -168,7 +265,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
 
     if (start >= end) {
       setValidationError({
-        ar: 'خطأ: تاريخ المغادرة يجب أن يكون لاحقاً لتاريخ الدخول.',
+        ar: 'خطأ: تاريخ المغادرة والوقت يجب أن يكون لاحقاً لتاريخ الدخول والوقت.',
         en: 'Error: Check-out must be after check-in.'
       });
       setEstimatedPrice(0);
@@ -178,8 +275,8 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
     // Check overlaps
     const overlapResult = checkOverlappingBookings(
       newBooking.property_id, 
-      newBooking.check_in, 
-      newBooking.check_out
+      startStr, 
+      endStr
     );
 
     if (overlapResult.hasOverlap) {
@@ -261,14 +358,21 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
 
     const finalPrice = customPriceMode === 'manual' ? manualPrice : estimatedPrice;
 
+    const startISO = newBooking.booking_type === 'half_day'
+      ? new Date(`${newBooking.check_in}T${newBooking.check_in_time || '08:00'}:00`).toISOString()
+      : new Date(`${newBooking.check_in}T00:00:00`).toISOString();
+    const endISO = newBooking.booking_type === 'half_day'
+      ? new Date(`${newBooking.check_out}T${newBooking.check_out_time || '18:00'}:00`).toISOString()
+      : new Date(`${newBooking.check_out}T00:00:00`).toISOString();
+
     try {
       await DatabaseService.createBooking({
         property_id: newBooking.property_id,
         guest_name: newBooking.guest_name,
         guest_phone: newBooking.guest_phone,
         guest_email: newBooking.guest_email,
-        check_in: new Date(newBooking.check_in).toISOString(),
-        check_out: new Date(newBooking.check_out).toISOString(),
+        check_in: startISO,
+        check_out: endISO,
         booking_type: newBooking.booking_type,
         status: 'pending',
         total_price: finalPrice,
@@ -285,6 +389,8 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
         check_in: '',
         check_out: '',
         booking_type: 'full_day',
+        check_in_time: '08:00',
+        check_out_time: '18:00',
       });
       setValidationError(null);
       
@@ -536,9 +642,9 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                       <h4 className="font-extrabold text-xs text-white truncate">{p.name}</h4>
                       <p className="text-[10px] text-slate-350 truncate">{p.location_text}</p>
                       <div className="flex gap-2.5 items-center text-[10px] font-bold text-slate-450 mt-1 select-none">
-                        <span className="text-blue-300 font-mono font-bold">{p.price_full_day} ر.ع. يوم كامل</span>
+                        <span className="text-blue-300 font-mono font-bold">{p.price_full_day} {currencySymbol} يوم كامل</span>
                         <span>|</span>
-                        <span className="text-purple-300 font-mono font-bold">{p.price_half_day} ر.ع. نصف يوم</span>
+                        <span className="text-purple-300 font-mono font-bold">{p.price_half_day} {currencySymbol} نصف يوم</span>
                       </div>
                     </div>
                   </div>
@@ -599,7 +705,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                   </p>
                   {properties.find(p => p.id === newBooking.property_id) && (
                     <span className="inline-block text-[11px] bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full font-mono font-bold">
-                      التعرفة: {properties.find(p => p.id === newBooking.property_id)?.price_full_day} ر.ع. / يوم
+                      التعرفة: {properties.find(p => p.id === newBooking.property_id)?.price_full_day} {currencySymbol} / يوم
                     </span>
                   )}
                 </div>
@@ -622,7 +728,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                   </p>
                   {properties.find(p => p.id === newBooking.property_id) && (
                     <span className="inline-block text-[11px] bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full font-mono font-bold">
-                      التعرفة: {properties.find(p => p.id === newBooking.property_id)?.price_half_day} ر.ع. / يوم
+                      التعرفة: {properties.find(p => p.id === newBooking.property_id)?.price_half_day} {currencySymbol} / يوم
                     </span>
                   )}
                 </div>
@@ -673,6 +779,15 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                 return;
               }
 
+              if (newBooking.booking_type === 'half_day') {
+                setNewBooking(prev => ({
+                  ...prev,
+                  check_in: dateStr,
+                  check_out: dateStr
+                }));
+                return;
+              }
+
               if (!newBooking.check_in || (newBooking.check_in && newBooking.check_out)) {
                 setNewBooking(prev => ({
                   ...prev,
@@ -719,13 +834,47 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
               }
             };
 
+            const dayBookings = newBooking.check_in
+              ? bookings
+                  .filter(b => {
+                    if (b.property_id !== newBooking.property_id) return false;
+                    if (b.status === 'cancelled') return false;
+
+                    const targetDate = new Date(newBooking.check_in);
+                    targetDate.setHours(0, 0, 0, 0);
+
+                    const checkInDate = new Date(b.check_in);
+                    checkInDate.setHours(0, 0, 0, 0);
+
+                    const checkOutDate = new Date(b.check_out);
+                    checkOutDate.setHours(0, 0, 0, 0);
+
+                    return targetDate >= checkInDate && targetDate <= checkOutDate;
+                  })
+                  .map(b => {
+                    const start = new Date(b.check_in);
+                    const end = new Date(b.check_out);
+                    const startHour = start.getHours() + start.getMinutes() / 60;
+                    const endHour = end.getHours() + end.getMinutes() / 60;
+                    return {
+                      guestName: b.guest_name,
+                      startHour,
+                      endHour
+                    };
+                  })
+              : [];
+
             return (
               <div className="space-y-4 animate-fadeIn">
                 <div className="text-right flex items-center justify-between">
                   <div>
                     <span className="text-[10px] bg-blue-600/20 text-blue-300 px-2.5 py-1 rounded-full font-bold">المرحلة الرابعة (نمط التقويم والشاغر المباشر)</span>
                     <h4 className="text-sm font-extrabold text-white mt-1.5">جدول الحجوزات للعقار والتواريخ المتوفرة:</h4>
-                    <p className="text-[11px] text-slate-300">انقر على يوم الدخول، ثم انقر على يوم الخروج لتظليل فترة الإقامة:</p>
+                    <p className="text-[11px] text-slate-300">
+                      {newBooking.booking_type === 'half_day'
+                        ? 'انقر على اليوم الذي تود حجزه، ثم حدد أوقات الدخول والخروج بالأسفل:'
+                        : 'انقر على يوم الدخول، ثم انقر على يوم الخروج لتظليل فترة الإقامة:'}
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -771,7 +920,9 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                       }
 
                       const cellDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-                      const booked = isDateBooked(cellDateStr);
+                      const status = getDateBookingStatus(cellDateStr);
+                      const booked = status === 'booked';
+                      const partial = status === 'partial';
                       
                       const selected = newBooking.check_in && (
                         newBooking.check_out
@@ -787,6 +938,8 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                         classColors = "bg-rose-500/10 text-rose-300 border-rose-500/10 line-through cursor-not-allowed opacity-80";
                       } else if (selected) {
                         classColors = "bg-blue-600/90 text-white border-blue-500 font-black shadow-lg shadow-blue-650/40";
+                      } else if (partial) {
+                        classColors = "bg-purple-500/25 text-purple-300 border-purple-500/30 hover:bg-purple-500/35";
                       }
 
                       return (
@@ -801,27 +954,62 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                           {checkInActive && <span className="absolute bottom-0.5 text-[7px] font-sans font-black bg-emerald-500 text-white px-1 py-0.5 rounded-md leading-none scale-90">وصول</span>}
                           {checkOutActive && <span className="absolute bottom-0.5 text-[7px] font-sans font-black bg-amber-500 text-white px-1 py-0.5 rounded-md leading-none scale-90">مغادرة</span>}
                           {booked && <span className="absolute bottom-0.5 text-[7px] font-sans font-black bg-rose-500/20 text-rose-400 px-1 py-0.5 rounded-md leading-none scale-90 select-none">محجوز</span>}
+                          {(!checkInActive && !checkOutActive && !booked && partial) && <span className="absolute bottom-0.5 text-[7px] font-sans font-black bg-purple-500 text-white px-1 py-0.5 rounded-md leading-none scale-90 select-none">جزئي</span>}
                         </button>
                       );
                     })}
                   </div>
 
-                  {/* Range visual checkouts output logs */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-white/5 rounded-xl border border-white/5 text-right select-none">
-                    <div className="space-y-0.5">
-                      <span className="text-[9px] text-slate-400 font-semibold block">تاريخ الدخول والوصول:</span>
-                      <span className="text-xs font-mono font-extrabold text-blue-300">
-                        {newBooking.check_in ? newBooking.check_in : 'انقر يوما للشروع'}
-                      </span>
+                  {/* Range visual checkouts output logs or timeline details */}
+                  {newBooking.booking_type === 'half_day' && newBooking.check_in && (
+                    <div className="space-y-4 p-3.5 bg-white/5 rounded-xl border border-white/5 text-right">
+                      <VisualTimeline
+                        dateStr={newBooking.check_in}
+                        bookedRanges={dayBookings}
+                        selectedStartHour={parseTimeToFloat(newBooking.check_in_time)}
+                        selectedEndHour={parseTimeToFloat(newBooking.check_out_time)}
+                      />
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-bold text-slate-300">وقت الدخول والوصول:</label>
+                          <input 
+                            type="time"
+                            value={newBooking.check_in_time}
+                            onChange={(e) => setNewBooking(prev => ({ ...prev, check_in_time: e.target.value }))}
+                            className="w-full bg-slate-950/40 border border-white/10 text-white rounded-xl text-xs py-2 px-3 focus:outline-none focus:border-blue-500 font-mono font-bold text-center"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-bold text-slate-300">وقت الخروج والمغادرة:</label>
+                          <input 
+                            type="time"
+                            value={newBooking.check_out_time}
+                            onChange={(e) => setNewBooking(prev => ({ ...prev, check_out_time: e.target.value }))}
+                            className="w-full bg-slate-950/40 border border-white/10 text-white rounded-xl text-xs py-2 px-3 focus:outline-none focus:border-blue-500 font-mono font-bold text-center"
+                          />
+                        </div>
+                      </div>
                     </div>
+                  )}
 
-                    <div className="space-y-0.5">
-                      <span className="text-[9px] text-slate-400 font-semibold block">تاريخ الخروج والمغادرة:</span>
-                      <span className="text-xs font-mono font-extrabold text-blue-300">
-                        {newBooking.check_out ? newBooking.check_out : 'شغّل المغادرة متمماً النطاق'}
-                      </span>
+                  {!(newBooking.booking_type === 'half_day') && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-white/5 rounded-xl border border-white/5 text-right select-none">
+                      <div className="space-y-0.5">
+                        <span className="text-[9px] text-slate-400 font-semibold block">تاريخ الدخول والوصول:</span>
+                        <span className="text-xs font-mono font-extrabold text-blue-300">
+                          {newBooking.check_in ? newBooking.check_in : 'انقر يوما للشروع'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <span className="text-[9px] text-slate-400 font-semibold block">تاريخ الخروج والمغادرة:</span>
+                        <span className="text-xs font-mono font-extrabold text-blue-300">
+                          {newBooking.check_out ? newBooking.check_out : 'شغّل المغادرة متمماً النطاق'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {validationError && (
@@ -981,8 +1169,15 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                       <p>• المدينة: <span className="text-white font-extrabold">{
                         selectedCity === 'riyadh' ? 'الرياض' : selectedCity === 'abha' ? 'أبها' : selectedCity === 'alula' ? 'العلا' : selectedCity
                       }</span></p>
-                      <p>• نمط الحجز: <span className="text-blue-300">{newBooking.booking_type === 'full_day' ? 'يوم كامل ومبيت' : 'نصف يوم بدون هبوط'}</span></p>
-                      <p>• الفترات: <span className="text-slate-100 font-mono font-bold">{newBooking.check_in}</span> إلى <span className="text-slate-100 font-mono font-bold">{newBooking.check_out}</span></p>
+                      <p>• نمط الحجز: <span className="text-blue-300">{newBooking.booking_type === 'full_day' ? 'يوم كامل ومبيت' : 'نصف يوم بدون مبيت'}</span></p>
+                      <p>• الفترات: {newBooking.booking_type === 'half_day' ? (
+                        <>
+                          <span className="text-slate-100 font-mono font-bold">{newBooking.check_in}</span>
+                          <span className="text-purple-400 font-mono font-bold text-xs mr-2">({newBooking.check_in_time} - {newBooking.check_out_time})</span>
+                        </>
+                      ) : (
+                        <>من <span className="text-slate-100 font-mono font-bold">{newBooking.check_in}</span> إلى <span className="text-slate-100 font-mono font-bold">{newBooking.check_out}</span></>
+                      )}</p>
                       {(() => {
                         if (!newBooking.check_in || !newBooking.check_out || !currentProp) return null;
                         const start = new Date(newBooking.check_in);
@@ -1018,29 +1213,44 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                               <>
                                 <div className="flex justify-between">
                                   <span>• أيام وسط الأسبوع:</span>
-                                  <span>{weekdaysCount} يوم × {wdayRate} ر.ع.</span>
+                                  <span>{weekdaysCount} يوم × {wdayRate} {currencySymbol}</span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>• عطلة نهاية الأسبوع:</span>
-                                  <span>{weekendsCount} يوم × {wendRate} ر.ع.</span>
+                                  <span>{weekendsCount} يوم × {wendRate} {currencySymbol}</span>
                                 </div>
                                 {useHolidayRate && (
                                   <div className="flex justify-between text-amber-400 font-bold border-t border-white/5 pt-1 mt-1">
                                     <span>• سعر الإجازات/المواسم المطبق:</span>
-                                    <span>{holRate} ر.ع.</span>
+                                    <span>{holRate} {currencySymbol}</span>
                                   </div>
                                 )}
                               </>
                             ) : (
-                              <div className="flex justify-between">
-                                <span>• تعرفة نصف اليوم:</span>
-                                <span>{currentProp.price_half_day} ر.ع.</span>
-                              </div>
+                              <>
+                                {useHolidayRate ? (
+                                  <div className="flex justify-between text-amber-400 font-bold border-t border-white/5 pt-1 mt-1">
+                                    <span>• سعر الإجازات/المواسم المطبق:</span>
+                                    <span>{currentProp.price_holiday || currentProp.price_half_day || 0} {currencySymbol}</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="flex justify-between">
+                                      <span>• أيام وسط الأسبوع (نصف يوم):</span>
+                                      <span>{weekdaysCount} يوم × {currentProp.price_half_day_weekday || currentProp.price_half_day || 0} {currencySymbol}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>• عطلة نهاية الأسبوع (نصف يوم):</span>
+                                      <span>{weekendsCount} يوم × {currentProp.price_half_day_weekend || currentProp.price_half_day || 0} {currencySymbol}</span>
+                                    </div>
+                                  </>
+                                )}
+                              </>
                             )}
                             {discountInput > 0 && (
                               <div className="flex justify-between text-rose-400 font-bold border-t border-white/5 pt-1 mt-1">
                                 <span>• الخصم المباشر المطبق:</span>
-                                <span>-{discountInput} ر.ع.</span>
+                                <span>-{discountInput} {currencySymbol}</span>
                               </div>
                             )}
                           </div>
@@ -1083,9 +1293,9 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
 
                     {/* Discount Input */}
                     <div className="space-y-1.5 text-right">
-                      <label className="block text-xs font-bold text-slate-350">الخصم المباشر المطبق (ر.ع.)</label>
+                      <label className="block text-xs font-bold text-slate-350">الخصم المباشر المطبق ({currencySymbol})</label>
                       <div className="relative">
-                        <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold text-xs pointer-events-none">ر.ع.</span>
+                        <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold text-xs pointer-events-none">{currencySymbol}</span>
                         <input
                           type="number"
                           min="0"
@@ -1114,7 +1324,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                           : 'bg-slate-950/40 text-slate-300 border-white/10 hover:bg-white/10'
                       }`}
                     >
-                      أوتوماتيكي (تلقائي للعقار): {estimatedPrice} ر.ع.
+                      أوتوماتيكي (تلقائي للعقار): {estimatedPrice} {currencySymbol}
                     </button>
 
                     <button
@@ -1133,9 +1343,9 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                   {/* Manual price inputs box */}
                   {customPriceMode === 'manual' && (
                     <div className="p-3 bg-black/25 rounded-xl border border-purple-500/20 text-right space-y-1.5 animate-fadeIn">
-                      <label className="block text-xs font-bold text-slate-300">عيّن قيمة الحساب اليدوي الكلية (ر.ع.) *</label>
+                      <label className="block text-xs font-bold text-slate-300">عيّن قيمة الحساب اليدوي الكلية ({currencySymbol}) *</label>
                       <div className="relative max-w-xs">
-                        <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold text-xs select-none">ر.ع.</span>
+                        <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold text-xs select-none">{currencySymbol}</span>
                         <input
                           type="number"
                           required
@@ -1156,7 +1366,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                         <span className="text-xl font-black text-rose-400 font-mono">
                           {customPriceMode === 'manual' ? manualPrice : estimatedPrice}
                         </span>
-                        <span className="text-xs text-slate-300 font-black">ر.ع.</span>
+                        <span className="text-xs text-slate-300 font-black">{currencySymbol}</span>
                         <span className="text-[9px] text-slate-400 mr-1 select-none">({customPriceMode === 'auto' ? 'حساب تلقائي حسب الجدول' : 'تخصيص يدوي مباشر'})</span>
                       </div>
                     </div>
@@ -1327,14 +1537,25 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
                         {getPropName(b.property_id)}
                       </td>
                       <td className="py-4 px-6 font-mono text-[11px] font-bold text-slate-300">
-                        <div>{new Date(b.check_in).toLocaleDateString('ar-OM', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                        <div className="text-[9px] text-slate-400 block mt-0.5">إلى {new Date(b.check_out).toLocaleDateString('ar-OM', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                        {b.booking_type === 'half_day' ? (
+                          <>
+                            <div>{new Date(b.check_in).toLocaleDateString('ar-OM', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                            <div className="text-[9px] text-purple-400 block mt-0.5 font-bold">
+                              {new Date(b.check_in).toLocaleTimeString('ar-OM', { hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(b.check_out).toLocaleTimeString('ar-OM', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>{new Date(b.check_in).toLocaleDateString('ar-OM', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                            <div className="text-[9px] text-slate-400 block mt-0.5">إلى {new Date(b.check_out).toLocaleDateString('ar-OM', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                          </>
+                        )}
                       </td>
                       <td className="py-4 px-6 font-bold text-slate-400">
                         {b.booking_type === 'full_day' ? 'يوم مبيت' : 'نصف يوم'}
                       </td>
                       <td className="py-4 px-6 font-mono font-extrabold text-blue-300">
-                        {b.total_price} ر.ع.
+                        {b.total_price} {currencySymbol}
                       </td>
                       <td className="py-4 px-6">
                         <span className={`inline-block px-2.5 py-1 text-[10px] font-bold rounded-full ${statusBadgeAr[b.status]?.style}`}>
@@ -1616,21 +1837,31 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
 
                           <div className="flex items-center justify-between text-[10px] bg-white/[0.02] p-2.5 rounded-lg border border-white/5 gap-2 select-none">
                             <div>
-                              <span className="text-slate-400 font-bold block">تاريخ الدخول</span>
+                              <span className="text-slate-400 font-bold block">{b.booking_type === 'half_day' ? 'وقت الدخول' : 'تاريخ الدخول'}</span>
                               <span className="text-slate-100 font-mono font-black block mt-0.5">
                                 {new Date(b.check_in).toLocaleDateString('ar-OM', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                {b.booking_type === 'half_day' && (
+                                  <span className="text-purple-400 block text-[9px] mt-0.5 font-bold">
+                                    {new Date(b.check_in).toLocaleTimeString('ar-OM', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                  </span>
+                                )}
                               </span>
                             </div>
                             <div>
-                              <span className="text-slate-400 font-bold block">تاريخ المغادرة</span>
+                              <span className="text-slate-400 font-bold block">{b.booking_type === 'half_day' ? 'وقت الخروج' : 'تاريخ المغادرة'}</span>
                               <span className="text-slate-100 font-mono font-black block mt-0.5">
                                 {new Date(b.check_out).toLocaleDateString('ar-OM', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                {b.booking_type === 'half_day' && (
+                                  <span className="text-purple-400 block text-[9px] mt-0.5 font-bold">
+                                    {new Date(b.check_out).toLocaleTimeString('ar-OM', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                  </span>
+                                )}
                               </span>
                             </div>
                             <div>
                               <span className="text-slate-400 font-bold block">التعرفة الإجمالية</span>
                               <span className="text-blue-300 font-mono font-black block mt-0.5 text-xs">
-                                {b.total_price} ر.ع.
+                                {b.total_price} {currencySymbol}
                               </span>
                             </div>
                           </div>

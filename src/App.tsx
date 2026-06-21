@@ -41,6 +41,7 @@ function DashboardShell() {
   const [showNotificationsDropdown, setShowNotificationsDropdown] = React.useState(false);
   const [timeStr, setTimeStr] = React.useState<string>('');
   const [forceOpenBookingAdd, setForceOpenBookingAdd] = React.useState<number>(0);
+  const [initialBookingPropertyId, setInitialBookingPropertyId] = React.useState<string>('');
   const [isSigningOut, setIsSigningOut] = React.useState(false);
 
   // Close notifications dropdown when switching tabs
@@ -106,9 +107,24 @@ function DashboardShell() {
       case 'dashboard':
         return <DashboardPage key={sessionKey} onNavigate={(tab) => setCurrentTab(tab)} />;
       case 'properties':
-        return <PropertiesPage key={sessionKey} />;
+        return (
+          <PropertiesPage 
+            key={sessionKey} 
+            onBookProperty={(propId) => {
+              setInitialBookingPropertyId(propId);
+              setCurrentTab('bookings');
+              setForceOpenBookingAdd(prev => prev + 1);
+            }} 
+          />
+        );
       case 'bookings':
-        return <BookingsPage key={sessionKey} forceOpenAdd={forceOpenBookingAdd} />;
+        return (
+          <BookingsPage 
+            key={sessionKey} 
+            forceOpenAdd={forceOpenBookingAdd} 
+            initialPropertyId={initialBookingPropertyId} 
+          />
+        );
       case 'users':
         return <UsersPage key={sessionKey} />;
       case 'reports':

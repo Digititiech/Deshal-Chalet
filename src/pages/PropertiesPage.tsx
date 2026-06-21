@@ -22,7 +22,11 @@ import {
 import { Property, UserRole } from '../types';
 import { DatabaseService, getCurrentlySimulatedUser } from '../services/db';
 
-export const PropertiesPage: React.FC = () => {
+interface PropertiesPageProps {
+  onBookProperty?: (propertyId: string) => void;
+}
+
+export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }) => {
   const [properties, setProperties] = React.useState<Property[]>([]);
   const [isEditing, setIsEditing] = React.useState(false);
   const [editingProp, setEditingProp] = React.useState<Partial<Property> | null>(null);
@@ -873,6 +877,18 @@ export const PropertiesPage: React.FC = () => {
 
                 {/* Operations check buttons based on roles */}
                 <div className="flex gap-1.5">
+                  {prop.status === 'available' && (
+                    <button 
+                      onClick={() => { 
+                        if (onBookProperty) onBookProperty(prop.id);
+                      }}
+                      className="px-3 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 border border-emerald-500/25 cursor-pointer shadow-md active:scale-95 transition-all"
+                      title="حجز المرفق الآن"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> حجز
+                    </button>
+                  )}
+
                   {canManageFully && (
                     <button 
                       onClick={() => { 

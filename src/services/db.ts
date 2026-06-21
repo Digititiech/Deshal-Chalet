@@ -316,7 +316,10 @@ export const DatabaseService = {
   async getProperties(): Promise<Property[]> {
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.from('properties').select('*');
-      if (!error && data) return data as Property[];
+      if (!error && data) {
+        localDB.setProperties(data as Property[]);
+        return data as Property[];
+      }
     }
     const list = localDB.getProperties();
     const u = getCurrentlySimulatedUser();
@@ -407,7 +410,10 @@ export const DatabaseService = {
   async getBookings(): Promise<Booking[]> {
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.from('bookings').select('*');
-      if (!error && data) return data as Booking[];
+      if (!error && data) {
+        localDB.setBookings(data as Booking[]);
+        return data as Booking[];
+      }
     }
     
     // Filter bookings based on simulation role for authentic testing:

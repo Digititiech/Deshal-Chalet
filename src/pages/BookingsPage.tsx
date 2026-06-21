@@ -198,7 +198,28 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd }) => {
 
     let baseRate = 0;
     if (newBooking.booking_type === 'half_day') {
-      baseRate = (prop.price_half_day || 0) * diffDays;
+      if (useHolidayRate) {
+        const holidayRate = prop.price_holiday || prop.price_half_day || 0;
+        baseRate = diffDays * holidayRate;
+      } else {
+        // Calculate weekdays vs weekends
+        let weekdaysCount = 0;
+        let weekendsCount = 0;
+        let temp = new Date(start);
+        for (let i = 0; i < diffDays; i++) {
+          const day = temp.getDay();
+          // Weekends in GCC/Oman chalets: Thursday, Friday, Saturday
+          if (day === 4 || day === 5 || day === 6) {
+            weekendsCount++;
+          } else {
+            weekdaysCount++;
+          }
+          temp.setDate(temp.getDate() + 1);
+        }
+        const halfWeekdayRate = prop.price_half_day_weekday || prop.price_half_day || 0;
+        const halfWeekendRate = prop.price_half_day_weekend || prop.price_half_day || 0;
+        baseRate = (weekdaysCount * halfWeekdayRate) + (weekendsCount * halfWeekendRate);
+      }
     } else {
       if (useHolidayRate) {
         const holidayRate = prop.price_holiday || prop.price_full_day || 0;

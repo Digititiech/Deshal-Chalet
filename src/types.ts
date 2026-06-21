@@ -44,6 +44,8 @@ export interface Property {
   price_half_day: number;
   price_weekday?: number;
   price_weekend?: number;
+  price_half_day_weekday?: number;
+  price_half_day_weekend?: number;
   price_holiday?: number;
   discount_amount?: number;
   rating: number;
@@ -52,6 +54,19 @@ export interface Property {
   size_sqm: number;
   image_url: string;
   location_text: string;
+  images?: string[];
+  features?: string[];
+  owner_info?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
+  custom_rates?: Array<{
+    label: string;
+    price: number;
+    start_date?: string;
+    end_date?: string;
+  }>;
   updated_at?: string;
   created_at?: string;
 }

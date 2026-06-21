@@ -336,7 +336,7 @@ export const DatabaseService = {
     return list;
   },
 
-  async createProperty(prop: Omit<Property, 'id' | 'created_at'>): Promise<Property> {
+  async createProperty(prop: Omit<Property, 'id' | 'created_at'>, assignedProfileId?: string): Promise<Property> {
     const id = generateUUID();
     const newProp: Property = {
       ...prop,
@@ -348,6 +348,15 @@ export const DatabaseService = {
       if (error) {
         throw new Error(error.message);
       }
+      if (assignedProfileId) {
+        const { error: upError } = await supabase.from('user_properties').insert({
+          profile_id: assignedProfileId,
+          property_id: id
+        });
+        if (upError) {
+          console.error('Error assigning property manager', upError);
+        }
+      }
     }
     const current = localDB.getProperties();
     localDB.setProperties([...current, newProp]);
@@ -355,18 +364,43 @@ export const DatabaseService = {
     return newProp;
   },
 
-  async updateProperty(prop: Property): Promise<Property> {
+  async updateProperty(prop: Property, assignedProfileId?: string): Promise<Property> {
     const updated = { ...prop, updated_at: new Date().toISOString() };
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('properties').update(updated).eq('id', prop.id);
       if (error) {
         throw new Error(error.message);
       }
+      // Update mappings
+      await supabase.from('user_properties').delete().eq('property_id', prop.id);
+      if (assignedProfileId) {
+        const { error: upError } = await supabase.from('user_properties').insert({
+          profile_id: assignedProfileId,
+          property_id: prop.id
+        });
+        if (upError) {
+          console.error('Error assigning property manager', upError);
+        }
+      }
     }
     const current = localDB.getProperties();
     localDB.setProperties(current.map(p => p.id === prop.id ? updated : p));
     this.createAuditLog('properties', 'UPDATE', prop.id, updated);
     return updated;
+  },
+
+  async getPropertyUserAssignments(): Promise<Record<string, string>> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('user_properties').select('*');
+      if (!error && data) {
+        const mappings: Record<string, string> = {};
+        data.forEach((row: any) => {
+          mappings[row.property_id] = row.profile_id;
+        });
+        return mappings;
+      }
+    }
+    return {};
   },
 
   // 4. Bookings Operations + Security Roles

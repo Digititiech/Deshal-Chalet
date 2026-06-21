@@ -96,8 +96,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const init = async () => {
       setIsLoading(true);
 
-      // Check if we are landing on the reset-password path on mount
-      if (window.location.pathname.includes('/reset-password')) {
+      // Check if we are landing on the reset-password path or have recovery hash on mount
+      if (
+        window.location.pathname.includes('/reset-password') ||
+        window.location.hash.includes('type=recovery') ||
+        window.location.hash.includes('access_token')
+      ) {
         setIsRecoveryMode(true);
       }
 

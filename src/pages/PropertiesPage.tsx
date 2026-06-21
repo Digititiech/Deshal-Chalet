@@ -26,6 +26,8 @@ export const PropertiesPage: React.FC = () => {
   const [properties, setProperties] = React.useState<Property[]>([]);
   const [isEditing, setIsEditing] = React.useState(false);
   const [editingProp, setEditingProp] = React.useState<Partial<Property> | null>(null);
+  const [amenitiesText, setAmenitiesText] = React.useState('');
+  const [featuresText, setFeaturesText] = React.useState('');
   
   // Profiles and Property-User Assignments states
   const [profiles, setProfiles] = React.useState<any[]>([]);
@@ -86,9 +88,24 @@ export const PropertiesPage: React.FC = () => {
       return;
     }
 
+    const amenitiesList = amenitiesText
+      .split(/,|\t/)
+      .map(s => s.trim())
+      .filter(Boolean);
+    const featuresList = featuresText
+      .split(/,|\t/)
+      .map(s => s.trim())
+      .filter(Boolean);
+
     try {
+      const finalProp: Property = {
+        ...(editingProp as Property),
+        amenities: amenitiesList,
+        features: featuresList
+      };
+
       if (editingProp.id) {
-        await DatabaseService.updateProperty(editingProp as Property, selectedProfileId);
+        await DatabaseService.updateProperty(finalProp, selectedProfileId);
       } else {
         await DatabaseService.createProperty({
           name: editingProp.name,
@@ -109,8 +126,8 @@ export const PropertiesPage: React.FC = () => {
           discount_amount: (editingProp.discount_amount !== undefined && editingProp.discount_amount !== null && editingProp.discount_amount !== '') ? Number(editingProp.discount_amount) : 0,
           rating: (editingProp.rating !== undefined && editingProp.rating !== null && editingProp.rating !== '') ? Number(editingProp.rating) : 5.0,
           rooms: (editingProp.rooms !== undefined && editingProp.rooms !== null && editingProp.rooms !== '') ? Number(editingProp.rooms) : 1,
-          amenities: editingProp.amenities || [],
-          features: editingProp.features || [],
+          amenities: amenitiesList,
+          features: featuresList,
           images: editingProp.images || [],
           owner_info: editingProp.owner_info || {},
           custom_rates: editingProp.custom_rates || [],
@@ -121,6 +138,8 @@ export const PropertiesPage: React.FC = () => {
       }
       setIsEditing(false);
       setEditingProp(null);
+      setAmenitiesText('');
+      setFeaturesText('');
       setSelectedProfileId('');
       await loadProperties();
     } catch (err: any) {
@@ -206,6 +225,8 @@ export const PropertiesPage: React.FC = () => {
                 image_url: '',
                 location_text: ''
               });
+              setAmenitiesText('');
+              setFeaturesText('');
               setSelectedProfileId('');
               setIsEditing(true);
             }}
@@ -274,7 +295,12 @@ export const PropertiesPage: React.FC = () => {
             </h3>
             <button 
               type="button" 
-              onClick={() => { setIsEditing(false); setEditingProp(null); }}
+              onClick={() => { 
+                setIsEditing(false); 
+                setEditingProp(null); 
+                setAmenitiesText('');
+                setFeaturesText('');
+              }}
               className="p-1 text-slate-400 hover:text-white"
             >
               <X className="w-5 h-5" />
@@ -286,7 +312,9 @@ export const PropertiesPage: React.FC = () => {
             <span className="text-xs font-bold text-blue-450 block border-b border-white/5 pb-1">المعلومات الأساسية للمرفق</span>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-350 mb-1">اسم العقار بالكامل *</label>
+                <label className="block text-xs font-bold text-slate-350 mb-1">
+                  اسم العقار بالكامل <span className="text-red-500 font-bold mx-0.5">*</span>
+                </label>
                 <input 
                   type="text" 
                   required
@@ -297,7 +325,9 @@ export const PropertiesPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-355 mb-1">رمز المرجع الفريد *</label>
+                <label className="block text-xs font-bold text-slate-355 mb-1">
+                  رمز المرجع الفريد <span className="text-red-500 font-bold mx-0.5">*</span>
+                </label>
                 <input 
                   type="text" 
                   required
@@ -307,7 +337,9 @@ export const PropertiesPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-355 mb-1">نمط الإقامة *</label>
+                <label className="block text-xs font-bold text-slate-355 mb-1">
+                  نمط الإقامة <span className="text-red-500 font-bold mx-0.5">*</span>
+                </label>
                 <select
                   value={editingProp.type || 'chalet'}
                   onChange={(e) => setEditingProp({...editingProp, type: e.target.value as any})}
@@ -319,7 +351,9 @@ export const PropertiesPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-355 mb-1">المنطقة الجغرافية الرئيسية *</label>
+                <label className="block text-xs font-bold text-slate-355 mb-1">
+                  المنطقة الجغرافية الرئيسية <span className="text-red-500 font-bold mx-0.5">*</span>
+                </label>
                 <select
                   value={editingProp.city || 'muscat'}
                   onChange={(e) => {
@@ -356,7 +390,9 @@ export const PropertiesPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-350 mb-1">عدد غرف النوم *</label>
+                <label className="block text-xs font-bold text-slate-350 mb-1">
+                  عدد غرف النوم <span className="text-red-500 font-bold mx-0.5">*</span>
+                </label>
                 <input 
                   type="number" 
                   required
@@ -409,11 +445,8 @@ export const PropertiesPage: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-350 mb-1">الملحقات (أدخلها مفصولة بفاصلة أو Tab)</label>
                 <input 
                   type="text" 
-                  value={editingProp.amenities?.join(', ') || ''} 
-                  onChange={(e) => {
-                    const list = e.target.value.split(/,|\t/).map(s => s.trim()).filter(Boolean);
-                    setEditingProp({...editingProp, amenities: list});
-                  }}
+                  value={amenitiesText} 
+                  onChange={(e) => setAmenitiesText(e.target.value)}
                   className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
                   placeholder="مثال: مسبح خاص، صالة ألعاب، شاشة ذكية"
                 />
@@ -422,11 +455,8 @@ export const PropertiesPage: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-350 mb-1">المميزات (أدخلها مفصولة بفاصلة أو Tab)</label>
                 <input 
                   type="text" 
-                  value={editingProp.features?.join(', ') || ''} 
-                  onChange={(e) => {
-                    const list = e.target.value.split(/,|\t/).map(s => s.trim()).filter(Boolean);
-                    setEditingProp({...editingProp, features: list});
-                  }}
+                  value={featuresText} 
+                  onChange={(e) => setFeaturesText(e.target.value)}
                   className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
                   placeholder="مثال: إطلالة جبلية، رمال بيضاء، هدوء تام"
                 />
@@ -439,7 +469,9 @@ export const PropertiesPage: React.FC = () => {
             <span className="text-xs font-bold text-blue-450 block border-b border-white/5 pb-1">موقع المرفق وتفاصيل العنوان (الدولة &gt; المحافظة &gt; العنوان)</span>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-350 mb-1">الدولة *</label>
+                <label className="block text-xs font-bold text-slate-350 mb-1">
+                  الدولة <span className="text-red-500 font-bold mx-0.5">*</span>
+                </label>
                 <input 
                   type="text" 
                   required
@@ -450,7 +482,9 @@ export const PropertiesPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-350 mb-1">الولاية أو المحافظة *</label>
+                <label className="block text-xs font-bold text-slate-350 mb-1">
+                  الولاية أو المحافظة <span className="text-red-500 font-bold mx-0.5">*</span>
+                </label>
                 <input 
                   type="text" 
                   required
@@ -461,7 +495,9 @@ export const PropertiesPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-350 mb-1">العنوان التفصيلي / الشارع *</label>
+                <label className="block text-xs font-bold text-slate-350 mb-1">
+                  العنوان التفصيلي / الشارع <span className="text-red-500 font-bold mx-0.5">*</span>
+                </label>
                 <input 
                   type="text" 
                   required
@@ -539,7 +575,9 @@ export const PropertiesPage: React.FC = () => {
               <span className="text-[11px] font-bold text-slate-300 block">سعر الإيجار لليوم الكامل:</span>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/30 p-3 rounded-lg border border-white/5">
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">السعر الأساسي (ر.ع.) *</label>
+                  <label className="block text-[11px] text-slate-400 mb-1">
+                    السعر الأساسي (ر.ع.) <span className="text-red-500 font-bold mx-0.5">*</span>
+                  </label>
                   <input 
                     type="number" 
                     required
@@ -576,7 +614,9 @@ export const PropertiesPage: React.FC = () => {
               <span className="text-[11px] font-bold text-slate-300 block">سعر الإيجار لنصف اليوم:</span>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/30 p-3 rounded-lg border border-white/5">
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">السعر الأساسي (ر.ع.) *</label>
+                  <label className="block text-[11px] text-slate-400 mb-1">
+                    السعر الأساسي (ر.ع.) <span className="text-red-500 font-bold mx-0.5">*</span>
+                  </label>
                   <input 
                     type="number" 
                     required
@@ -729,7 +769,13 @@ export const PropertiesPage: React.FC = () => {
           <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
             <button 
               type="button" 
-              onClick={() => { setIsEditing(false); setEditingProp(null); setSelectedProfileId(''); }}
+              onClick={() => { 
+                setIsEditing(false); 
+                setEditingProp(null); 
+                setSelectedProfileId(''); 
+                setAmenitiesText('');
+                setFeaturesText('');
+              }}
               className="px-4 py-2 bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold rounded-lg transition-colors cursor-pointer border border-white/5"
             >
               إلغاء الأمر
@@ -849,6 +895,8 @@ export const PropertiesPage: React.FC = () => {
                     <button 
                       onClick={() => { 
                         setEditingProp(prop); 
+                        setAmenitiesText(prop.amenities?.join(', ') || '');
+                        setFeaturesText(prop.features?.join(', ') || '');
                         setSelectedProfileId(assignments[prop.id] || '');
                         setIsEditing(true); 
                       }}

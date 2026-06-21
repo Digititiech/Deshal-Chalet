@@ -14,7 +14,7 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ forceView }) => {
-  const { signIn, sendPasswordResetEmail, updatePassword, setIsRecoveryMode } = useAuth();
+  const { signIn, sendPasswordResetEmail, updatePassword, setIsRecoveryMode, authError, clearAuthError } = useAuth();
 
   // Form state
   const [view, setView] = useState<LoginView>(forceView || 'login');
@@ -27,6 +27,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ forceView }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pick up any global auth error (e.g. expired OTP link) from AuthContext on mount
+  React.useEffect(() => {
+    if (authError) {
+      setError(authError);
+      clearAuthError();
+    }
+  }, [authError]);
 
   // Sync forceView changes
   React.useEffect(() => {

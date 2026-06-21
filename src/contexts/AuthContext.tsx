@@ -28,6 +28,8 @@ export interface AuthContextValue extends AuthSession {
   isRecoveryMode: boolean;
   setIsRecoveryMode: (val: boolean) => void;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
+  authError: string | null;
+  clearAuthError: () => void;
 }
 
 // -------------------------------------------------------
@@ -70,6 +72,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const clearAuthError = () => setAuthError(null);
 
   // Load profile from profiles list by user id
   const loadProfile = async (userId: string): Promise<Profile | null> => {
@@ -98,10 +103,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const init = async () => {
       setIsLoading(true);
 
-      // Detect password recovery mode from URL hash FIRST before anything else
-      // Supabase sends: #access_token=...&type=recovery or ?type=recovery
       const hashStr = window.location.hash;
       const searchStr = window.location.search;
+
+      // Handle expired/invalid OTP link from Supabase email
+      // URL looks like: #error=access_denied&error_code=otp_expired&error_description=...
+      if (hashStr.includes('error=access_denied') || hashStr.includes('error_code=otp_expired')) {
+        // Clear the ugly error hash from the URL bar
+        if (window.history.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        setAuthError('انتهت صلاحية رابط إعادة تعيين كلمة المرور. يرجى طلب رابط جديد.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Detect password recovery mode from URL hash FIRST before anything else
+      // Supabase sends: #access_token=...&type=recovery or ?type=recovery
       const isRecovery =
         hashStr.includes('type=recovery') ||
         searchStr.includes('type=recovery') ||
@@ -290,6 +308,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isRecoveryMode,
     setIsRecoveryMode,
     updatePassword,
+    authError,
+    clearAuthError,
   };
 
   return (

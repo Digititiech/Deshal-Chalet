@@ -1,0 +1,24 @@
+{
+  "name": "ذا ستار شاليه - نظام إدارة الحجوزات والضيافة",
+  "short_name": "ذا ستار شاليه",
+  "description": "نظام متكامل لإدارة حجوزات الشاليهات والمخيمات الفلكية الفاخرة في سلطنة عمان",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1222",
+  "theme_color": "#0c1222",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}

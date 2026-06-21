@@ -350,24 +350,63 @@ export const DatabaseService = {
   // 2. Profiles / Users Operations
   async getProfiles(): Promise<Profile[]> {
     if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.from('profiles').select('*');
-      if (!error && data) return data as Profile[];
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          user_properties (
+            property_id
+          )
+        `);
+      if (!error && data) {
+        return data.map((p: any) => ({
+          ...p,
+          assigned_property_ids: p.user_properties?.map((up: any) => up.property_id) || []
+        })) as Profile[];
+      }
     }
     return localDB.getProfiles();
   },
 
   async createProfile(profile: Omit<Profile, 'id' | 'created_at'>): Promise<Profile> {
-    const id = 'p-' + Math.random().toString(36).substr(2, 9);
-    const newProfile: Profile = {
+    let id = 'p-' + Math.random().toString(36).substr(2, 9);
+    let newProfile: Profile = {
       ...profile,
       id,
       created_at: new Date().toISOString()
     };
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('profiles').insert(newProfile);
+      // 1. Call database RPC function to create the user in auth.users & trigger profiles
+      const { data: newUserId, error } = await supabase.rpc('admin_create_user', {
+        u_email: profile.email,
+        u_password: profile.password || '123',
+        u_full_name: profile.full_name,
+        u_role: profile.role,
+        u_avatar_url: profile.avatar_url || ''
+      });
+      if (error) {
+        throw new Error(error.message);
+      }
+      if (newUserId) {
+        id = newUserId;
+        newProfile = {
+          ...profile,
+          id,
+          created_at: new Date().toISOString()
+        };
+        // 2. Link properties in user_properties mapping table
+        if (profile.assigned_property_ids && profile.assigned_property_ids.length > 0) {
+          const insertData = profile.assigned_property_ids.map(propId => ({
+            profile_id: id,
+            property_id: propId
+          }));
+          await supabase.from('user_properties').insert(insertData);
+        }
+      }
+    } else {
+      const current = localDB.getProfiles();
+      localDB.setProfiles([...current, newProfile]);
     }
-    const current = localDB.getProfiles();
-    localDB.setProfiles([...current, newProfile]);
     this.createAuditLog('profiles', 'INSERT', id, newProfile);
     return newProfile;
   },
@@ -375,10 +414,46 @@ export const DatabaseService = {
   async updateProfile(profile: Profile): Promise<Profile> {
     const updated = { ...profile, updated_at: new Date().toISOString() };
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('profiles').update(updated).eq('id', profile.id);
+      // 1. Fetch current profile to check password changes
+      const { data: oldProfile } = await supabase.from('profiles').select('password').eq('id', profile.id).single();
+      
+      // 2. Update profiles table (omitting assigned_property_ids)
+      const { error: updateError } = await supabase.from('profiles').update({
+        full_name: profile.full_name,
+        email: profile.email,
+        role: profile.role,
+        status: profile.status,
+        avatar_url: profile.avatar_url,
+        updated_at: updated.updated_at
+      }).eq('id', profile.id);
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+
+      // 3. Reset password in auth.users if changed
+      if (profile.password && (!oldProfile || oldProfile.password !== profile.password)) {
+        const { error: pwdError } = await supabase.rpc('admin_reset_password', {
+          u_user_id: profile.id,
+          u_new_password: profile.password
+        });
+        if (pwdError) {
+          throw new Error(pwdError.message);
+        }
+      }
+
+      // 4. Update user_properties mappings
+      await supabase.from('user_properties').delete().eq('profile_id', profile.id);
+      if (profile.assigned_property_ids && profile.assigned_property_ids.length > 0) {
+        const insertData = profile.assigned_property_ids.map(propId => ({
+          profile_id: profile.id,
+          property_id: propId
+        }));
+        await supabase.from('user_properties').insert(insertData);
+      }
+    } else {
+      const current = localDB.getProfiles();
+      localDB.setProfiles(current.map(p => p.id === profile.id ? updated : p));
     }
-    const current = localDB.getProfiles();
-    localDB.setProfiles(current.map(p => p.id === profile.id ? updated : p));
     this.createAuditLog('profiles', 'UPDATE', profile.id, updated);
     return updated;
   },

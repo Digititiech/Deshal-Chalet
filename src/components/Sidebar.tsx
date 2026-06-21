@@ -11,7 +11,6 @@ import {
   Users, 
   FilePieChart, 
   Settings as SettingsIcon,
-  Sparkles,
   ShieldAlert,
   HelpCircle,
   Database,
@@ -72,13 +71,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, onU
   return (
     <aside id="sidebar-container" className="w-full h-full text-slate-100 flex flex-col justify-between">
       {/* Brand Header */}
-      <div className="p-6 border-b border-white/10 flex items-center justify-between">
+      <div className="p-5 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl shadow-lg shadow-blue-500/20">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="w-11 h-11 rounded-xl overflow-hidden shadow-lg shadow-amber-900/20 ring-1 ring-amber-500/20 flex-shrink-0">
+            <img src="/logo.png" alt="شعار ذا ستار شاليه" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h1 className="font-bold text-lg tracking-tight bg-gradient-to-l from-blue-200 to-white bg-clip-text text-transparent">ذا ستار شاليه</h1>
+            <h1 className="font-bold text-lg tracking-tight bg-gradient-to-l from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-transparent">ذا ستار شاليه</h1>
             <p className="text-[10px] text-slate-400 font-medium">نظام التشغيل الرقمي v2.5</p>
           </div>
         </div>

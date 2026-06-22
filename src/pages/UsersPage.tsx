@@ -49,6 +49,14 @@ export const UsersPage: React.FC = () => {
   const currentUser = profile!;
   const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'company_manager';
 
+  if (currentUser.role !== 'super_admin') {
+    return (
+      <div className="p-6 text-center text-rose-400 font-bold bg-[#0c1223]/80 border border-rose-500/20 rounded-2xl animate-fadeIn" dir="rtl">
+        عذراً، هذه الصفحة مخصصة للمدير العام (Super Admin) فقط ولا تملك صلاحيات كافية لاستعراضها.
+      </div>
+    );
+  }
+
   const loadData = async () => {
     const list = await DatabaseService.getProfiles();
     setProfiles(list);
@@ -195,7 +203,7 @@ export const UsersPage: React.FC = () => {
             <Users className="w-6 h-6 text-blue-400" />
             <span>إدارة صلاحيات الموظفين والمستخدمين</span>
           </h2>
-          <p className="text-xs text-slate-300 mt-1">تحديد المسميات الإشرافية، تعيين الرموز السرية، وربط الموظفين بعقارات محددة للوصول</p>
+          <p className="text-xs text-slate-300 mt-1">تحديد المسميات الإشرافية، وتعيين الصلاحيات، وربط الموظفين بمرافق وعقارات محددة</p>
         </div>
         
         {isAdmin && (
@@ -271,23 +279,8 @@ export const UsersPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-5">
             <div>
-              <label className="block text-xs font-bold text-slate-350 mb-1 flex items-center gap-1">
-                <Lock className="w-3.5 h-3.5 text-blue-400" />
-                <span>الرمز السري المخصص للوصول (Password) *</span>
-              </label>
-              <input 
-                type="text"
-                required
-                placeholder="أدخل رمز سري، مثلاً: 4321"
-                value={newProfile.password}
-                onChange={(e) => setNewProfile({...newProfile, password: e.target.value})}
-                className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
-              />
-            </div>
-            
-            <div className="md:col-span-2">
               <label className="block text-xs font-bold text-slate-350 mb-2 flex items-center gap-1">
                 <Building className="w-3.5 h-3.5 text-blue-400" />
                 <span>ربط الموظف بالعقارات المتاحة (صلاحية تحكم مخصصة)</span>
@@ -393,23 +386,8 @@ export const UsersPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-5">
             <div>
-              <label className="block text-xs font-bold text-slate-350 mb-1 flex items-center gap-1">
-                <Lock className="w-3.5 h-3.5 text-blue-400" />
-                <span>الرمز السري المخصص للوصول (Password) *</span>
-              </label>
-              <input 
-                type="text"
-                required
-                value={editingProfile.password || ''}
-                placeholder="أدخل رمز سري جديد"
-                onChange={(e) => setEditingProfile({...editingProfile, password: e.target.value})}
-                className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-2 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div className="md:col-span-2">
               <label className="block text-xs font-bold text-slate-350 mb-2 flex items-center gap-1">
                 <Building className="w-3.5 h-3.5 text-blue-400" />
                 <span>تعديل العقارات المرتبطة بالحساب</span>
@@ -505,25 +483,6 @@ export const UsersPage: React.FC = () => {
                     {roleLabelsAr[p.role]}
                   </span>
                   
-                  {/* Password section */}
-                  <div className="bg-white/[0.03] border border-white/5 p-2 rounded-xl flex items-center justify-between text-xs text-slate-300">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Lock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                      <span className="text-[10px] text-slate-400 font-bold">الرمز السري:</span>
-                      <span className="font-mono font-bold tracking-wider text-slate-100 truncate">
-                        {showPass ? (p.password || '123') : '••••'}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => togglePasswordVisibility(p.id)}
-                      className="p-1 hover:bg-white/10 rounded transition-colors text-slate-400 hover:text-slate-100 cursor-pointer"
-                      title={showPass ? "إخفاء الرمز السري" : "إظهار الرمز السري"}
-                    >
-                      {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-
                   {/* Property assign list */}
                   <div className="space-y-1">
                     <span className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1">

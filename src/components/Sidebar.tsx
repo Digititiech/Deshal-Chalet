@@ -33,7 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
     { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
     { id: 'properties', label: 'المرافق الشاليهات', icon: Home },
     { id: 'bookings', label: 'سجل الحجوزات', icon: CalendarDays },
-    { id: 'users', label: 'إدارة الصلاحيات', icon: Users },
+    ...(currentUser.role === 'super_admin' ? [{ id: 'users', label: 'إدارة الصلاحيات', icon: Users }] : []),
     { id: 'reports', label: 'التقارير والتدقيق', icon: FilePieChart },
     { id: 'settings', label: 'إعدادات النظام', icon: SettingsIcon },
   ];

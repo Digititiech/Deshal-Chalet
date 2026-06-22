@@ -336,6 +336,9 @@ function DashboardShell() {
           />
         );
       case 'users':
+        if (currentUser.role !== 'super_admin') {
+          return <DashboardPage key={sessionKey} onNavigate={(tab) => setCurrentTab(tab)} />;
+        }
         return <UsersPage key={sessionKey} />;
       case 'reports':
         return <ReportsPage key={sessionKey} />;

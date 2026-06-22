@@ -194,7 +194,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
 
   // Questionnaire Wizard states
   const [wizardStep, setWizardStep] = React.useState<number>(1);
-const [showConfirmModal, setShowConfirmModal] = React.useState(false);
+  const [showConfirmModal, setShowConfirmModal] = React.useState(false);
   const [selectedCity, setSelectedCity] = React.useState<string>('');
   const [customPriceMode, setCustomPriceMode] = React.useState<'auto' | 'manual'>('auto');
   const [manualPrice, setManualPrice] = React.useState<number>(0);

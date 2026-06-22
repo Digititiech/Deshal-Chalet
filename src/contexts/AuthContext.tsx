@@ -134,35 +134,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsRecoveryMode(true);
       }
 
+
       // PKCE flow: exchange the auth code for a session.
       // This will trigger the PASSWORD_RECOVERY event in onAuthStateChange.
-      if (pkceCode && isSupabaseConfigured && supabase) {
-        supabase.auth.exchangeCodeForSession(pkceCode).then(({ error }) => {
-          if (error) {
-            console.error('[Auth] PKCE code exchange failed:', error.message);
-            // Show user-friendly error for expired/invalid links
-            if (error.message.toLowerCase().includes('expired') ||
-                error.message.toLowerCase().includes('invalid') ||
-                error.message.toLowerCase().includes('code')) {
-              setAuthError('انتهت صلاحية رابط إعادة تعيين كلمة المرور أو أنه غير صالح. يرجى طلب رابط جديد.');
-            } else {
-              setAuthError(translateAuthError(error.message));
-            }
-            setIsLoading(false);
-          }
-          // On success, onAuthStateChange will fire PASSWORD_RECOVERY event
-          // which sets isRecoveryMode = true and isLoading = false
-        });
-        // Clean the ?code= from URL bar so it can't be replayed
-        if (window.history.replaceState) {
-          const cleanUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, cleanUrl);
-        }
-      }
+      // NOTE: This block is intentionally placed BEFORE subscribing so we detect the code early,
+      // but the actual exchange happens AFTER the listener is registered below.
 
       if (isSupabaseConfigured && supabase) {
-        // Subscribe to auth state changes BEFORE getting session
-        // This ensures PASSWORD_RECOVERY event is captured correctly
+        // Subscribe to auth state changes FIRST so PASSWORD_RECOVERY event is never missed
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (event === 'PASSWORD_RECOVERY') {
             // Recovery event: show reset-password form, do NOT set user session
@@ -171,8 +150,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
           }
 
-          if (event === 'SIGNED_IN' && (isRecovery || window.location.hash.includes('type=recovery'))) {
-            // SIGNED_IN fires alongside PASSWORD_RECOVERY — ignore it in recovery mode
+          if (event === 'SIGNED_IN' && (isRecovery || pkceCode || window.location.hash.includes('type=recovery'))) {
+            // SIGNED_IN fires alongside PASSWORD_RECOVERY in recovery flow — ignore it
             setIsLoading(false);
             return;
           }
@@ -191,8 +170,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         cleanupFn = () => subscription.unsubscribe();
 
-        // 1. Get existing Supabase session (only use it if NOT in recovery mode)
-        if (!isRecovery) {
+        if (pkceCode) {
+          // PKCE recovery: exchange code for session (listener above will handle PASSWORD_RECOVERY event)
+          // Clean the ?code= from URL bar immediately so it can't be replayed
+          if (window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+          const { error: codeError } = await supabase.auth.exchangeCodeForSession(pkceCode);
+          if (codeError) {
+            console.error('[Auth] PKCE code exchange failed:', codeError.message);
+            const msg = codeError.message.toLowerCase();
+            if (msg.includes('expired') || msg.includes('invalid') || msg.includes('code')) {
+              setAuthError('انتهت صلاحية رابط إعادة تعيين كلمة المرور أو أنه غير صالح. يرجى طلب رابط جديد.');
+            } else {
+              setAuthError(translateAuthError(codeError.message));
+            }
+            setIsRecoveryMode(false);
+            setIsLoading(false);
+          }
+          // On success, onAuthStateChange fires PASSWORD_RECOVERY → sets isRecoveryMode + loading done
+        } else if (!isRecovery) {
+          // Normal session restore (not a recovery flow)
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             const authUser = { id: session.user.id, email: session.user.email! };
@@ -200,9 +198,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const p = await loadProfile(session.user.id);
             setProfile(p);
           }
+          setIsLoading(false);
         }
-
-        setIsLoading(false);
+        // If implicit recovery (hash type=recovery), onAuthStateChange will fire and handle loading
       } else {
         // Local fallback auth
         const localUser = getLocalAuthUser();

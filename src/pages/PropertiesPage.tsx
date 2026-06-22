@@ -19,7 +19,7 @@ import {
   X,
   AlertOctagon
 } from 'lucide-react';
-import { Property, UserRole } from '../types';
+import { Property, UserRole, Settings } from '../types';
 import { DatabaseService } from '../services/db';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -33,6 +33,7 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
   const [editingProp, setEditingProp] = React.useState<Partial<Property> | null>(null);
   const [amenitiesText, setAmenitiesText] = React.useState('');
   const [featuresText, setFeaturesText] = React.useState('');
+  const [settings, setSettings] = React.useState<Settings | null>(null);
   
   // Profiles and Property-User Assignments states
   const [profiles, setProfiles] = React.useState<any[]>([]);
@@ -46,6 +47,7 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
 
   const { profile } = useAuth();
   const currentUser = profile!;
+  const currencySymbol = settings?.currency_name || 'ر.ع.';
   const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'company_manager';
   const isPM = currentUser.role === 'property_manager';
   
@@ -63,6 +65,8 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
       setProfiles(profs);
       const assigns = await DatabaseService.getPropertyUserAssignments();
       setAssignments(assigns);
+      const sets = await DatabaseService.getSettings();
+      setSettings(sets);
     } catch (err) {
       console.error('Error loading profiles or assignments', err);
     }
@@ -564,7 +568,7 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/30 p-3 rounded-lg border border-white/5">
                 <div>
                   <label className="block text-[11px] text-slate-400 mb-1">
-                    السعر الأساسي (ر.ع.) <span className="text-red-500 font-bold mx-0.5">*</span>
+                    السعر الأساسي ({currencySymbol}) <span className="text-red-500 font-bold mx-0.5">*</span>
                   </label>
                   <input 
                     type="number" 
@@ -575,21 +579,21 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">سعر منتصف الأسبوع (ر.ع.)</label>
+                  <label className="block text-[11px] text-slate-400 mb-1">سعر منتصف الأسبوع ({currencySymbol})</label>
                   <input 
                     type="number" 
                     value={editingProp.price_weekday || ''} 
-                    placeholder="تلقائي (السعر الأساسي)"
+                    placeholder={`تلقائي (${currencySymbol})`}
                     onChange={(e) => setEditingProp({...editingProp, price_weekday: e.target.value ? Number(e.target.value) : undefined})}
                     className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-1.5 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">سعر عطلة نهاية الأسبوع (ر.ع.)</label>
+                  <label className="block text-[11px] text-slate-400 mb-1">سعر عطلة نهاية الأسبوع ({currencySymbol})</label>
                   <input 
                     type="number" 
                     value={editingProp.price_weekend || ''} 
-                    placeholder="تلقائي (السعر الأساسي)"
+                    placeholder={`تلقائي (${currencySymbol})`}
                     onChange={(e) => setEditingProp({...editingProp, price_weekend: e.target.value ? Number(e.target.value) : undefined})}
                     className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-1.5 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
                   />
@@ -603,7 +607,7 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/30 p-3 rounded-lg border border-white/5">
                 <div>
                   <label className="block text-[11px] text-slate-400 mb-1">
-                    السعر الأساسي (ر.ع.) <span className="text-red-500 font-bold mx-0.5">*</span>
+                    السعر الأساسي ({currencySymbol}) <span className="text-red-500 font-bold mx-0.5">*</span>
                   </label>
                   <input 
                     type="number" 
@@ -614,21 +618,21 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">سعر منتصف الأسبوع (ر.ع.)</label>
+                  <label className="block text-[11px] text-slate-400 mb-1">سعر منتصف الأسبوع ({currencySymbol})</label>
                   <input 
                     type="number" 
                     value={editingProp.price_half_day_weekday || ''} 
-                    placeholder="تلقائي (السعر الأساسي)"
+                    placeholder={`تلقائي (${currencySymbol})`}
                     onChange={(e) => setEditingProp({...editingProp, price_half_day_weekday: e.target.value ? Number(e.target.value) : undefined})}
                     className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-1.5 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">سعر عطلة نهاية الأسبوع (ر.ع.)</label>
+                  <label className="block text-[11px] text-slate-400 mb-1">سعر عطلة نهاية الأسبوع ({currencySymbol})</label>
                   <input 
                     type="number" 
                     value={editingProp.price_half_day_weekend || ''} 
-                    placeholder="تلقائي (السعر الأساسي)"
+                    placeholder={`تلقائي (${currencySymbol})`}
                     onChange={(e) => setEditingProp({...editingProp, price_half_day_weekend: e.target.value ? Number(e.target.value) : undefined})}
                     className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-1.5 px-3 text-white font-semibold focus:outline-none focus:border-blue-500"
                   />
@@ -649,7 +653,7 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
                 <input 
                   type="number" 
                   id="custom-rate-price"
-                  placeholder="السعر (ر.ع.)" 
+                  placeholder={`السعر (${currencySymbol})`} 
                   className="bg-slate-900/60 border border-white/10 rounded-lg text-xs py-1.5 px-3 text-white font-semibold w-24 outline-none focus:border-blue-500"
                 />
                 <button
@@ -675,7 +679,7 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
                 <div className="space-y-1.5 pt-2">
                   {editingProp.custom_rates.map((cr, idx) => (
                     <div key={idx} className="flex items-center justify-between bg-white/[0.03] border border-white/5 py-1.5 px-3 rounded-lg text-xs">
-                      <span>{cr.label} : <span className="font-mono text-blue-300 font-bold">{cr.price} ر.ع.</span></span>
+                      <span>{cr.label} : <span className="font-mono text-blue-300 font-bold">{cr.price} {currencySymbol}</span></span>
                       <button
                         type="button"
                         onClick={() => {
@@ -870,10 +874,10 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
                 <div>
                   <p className="text-[10px] text-slate-400 font-bold">الأسعار الموسمية المعتمدة</p>
                   <p className="text-sm font-extrabold text-white font-mono mt-0.5">
-                    {prop.price_full_day} ر.ع. <span className="text-[10px] font-medium text-slate-400">/ يوم كامل</span>
+                    {prop.price_full_day} {currencySymbol} <span className="text-[10px] font-medium text-slate-400">/ يوم كامل</span>
                   </p>
                   <p className="text-xs font-semibold text-slate-300 font-mono">
-                    {prop.price_half_day} ر.ع. <span className="text-[10px] font-medium text-slate-400">/ نصف يوم</span>
+                    {prop.price_half_day} {currencySymbol} <span className="text-[10px] font-medium text-slate-400">/ نصف يوم</span>
                   </p>
                 </div>
 

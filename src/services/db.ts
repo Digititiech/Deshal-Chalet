@@ -337,13 +337,6 @@ export const DatabaseService = {
     if (u.assigned_property_ids && u.assigned_property_ids.length > 0) {
       return list.filter(p => u.assigned_property_ids!.includes(p.id));
     }
-    // legacy fallbacks
-    if (u.id === 'p-3') {
-      return list.filter(p => p.id === 'prop-1');
-    }
-    if (u.id === 'p-4') {
-      return list.filter(p => p.id === 'prop-1' || p.id === 'prop-2');
-    }
     return list;
   },
 
@@ -436,14 +429,6 @@ export const DatabaseService = {
       return list.filter(b => u.assigned_property_ids!.includes(b.property_id));
     }
     
-    // Simulating access filters for security mock
-    // Staff p-4 works with Golden Sands and High Horizon. PM p-3 owns Riyadh resort Golden Sands.
-    if (u.id === 'p-3') {
-      return list.filter(b => b.property_id === 'prop-1');
-    }
-    if (u.id === 'p-4') {
-      return list.filter(b => b.property_id === 'prop-1' || b.property_id === 'prop-2');
-    }
     return list;
   },
 
@@ -476,9 +461,11 @@ export const DatabaseService = {
 
     // Notify of new booking
     const propName = localDB.getProperties().find(p => p.id === booking.property_id)?.name || 'العقار بـ ' + ref_code;
+    const settings = localDB.getSettings();
+    const currencySymbol = settings?.currency_name || 'ر.ع.';
     this.createNotification(
       'حجز جديد مضاف',
-      `تم إدخال حجز جديد للعميل ${booking.guest_name} في ${propName} بقيمة ${booking.total_price} ر.ع.`,
+      `تم إدخال حجز جديد للعميل ${booking.guest_name} في ${propName} بقيمة ${booking.total_price} ${currencySymbol}`,
       'success'
     );
 

@@ -16,7 +16,7 @@ import {
   UserCheck,
   Printer
 } from 'lucide-react';
-import { AuditLog, Booking, Profile, Property } from '../types';
+import { AuditLog, Booking, Profile, Property, Settings } from '../types';
 import { DatabaseService } from '../services/db';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -106,6 +106,7 @@ export const ReportsPage: React.FC = () => {
   const [profiles, setProfiles] = React.useState<Profile[]>([]);
   const [properties, setProperties] = React.useState<Property[]>([]);
   const [auditLogs, setAuditLogs] = React.useState<AuditLog[]>([]);
+  const [settings, setSettings] = React.useState<Settings | null>(null);
 
   // Date Filter states
   const [datePreset, setDatePreset] = React.useState<string>('all');
@@ -114,6 +115,7 @@ export const ReportsPage: React.FC = () => {
 
   const { profile } = useAuth();
   const activeUser = profile;
+  const currencySymbol = settings?.currency_name || 'ر.ع.';
 
   React.useEffect(() => {
     async function loadData() {
@@ -121,11 +123,13 @@ export const ReportsPage: React.FC = () => {
       const profs = await DatabaseService.getProfiles();
       const props = await DatabaseService.getProperties();
       const logs = DatabaseService.getAuditLogs();
+      const sets = await DatabaseService.getSettings();
 
       setBookings(books);
       setProfiles(profs);
       setProperties(props);
       setAuditLogs(logs);
+      setSettings(sets);
     }
     loadData();
   }, []);
@@ -201,7 +205,7 @@ export const ReportsPage: React.FC = () => {
       "تاريخ الدخول",
       "تاريخ المغادرة",
       "نوع الإقامة",
-      "القيمة الكلية (ر.ع.)",
+      `القيمة الكلية (${currencySymbol})`,
       "الحالة الحالية"
     ];
     
@@ -276,7 +280,7 @@ export const ReportsPage: React.FC = () => {
           <td style="padding: 10px 12px; font-family: monospace; font-size: 11px;">${b.check_in}</td>
           <td style="padding: 10px 12px; font-family: monospace; font-size: 11px;">${b.check_out}</td>
           <td style="padding: 10px 12px;">${typeLabel}</td>
-          <td style="padding: 10px 12px; font-weight: 900; color: #047857; font-family: monospace;">${b.total_price} ر.ع.</td>
+          <td style="padding: 10px 12px; font-weight: 900; color: #047857; font-family: monospace;">${b.total_price} ${currencySymbol}</td>
           <td style="padding: 10px 12px;">
             <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: bold;" class="${statusClass}">
               ${statusLabel}
@@ -515,7 +519,7 @@ export const ReportsPage: React.FC = () => {
   <div class="stats-grid">
     <div class="stat-card">
       <span class="stat-label">إجمالي الإيرادات الفعلية</span>
-      <span class="stat-value">${totalRevenue} ر.ع.</span>
+      <span class="stat-value">${totalRevenue} ${currencySymbol}</span>
       <span class="stat-desc">مؤكد وعمليات منتهية فقط</span>
     </div>
     <div class="stat-card">
@@ -727,8 +731,8 @@ export const ReportsPage: React.FC = () => {
           </div>
 
           <div className="frosted p-5 rounded-xl border border-white/10 shadow-lg space-y-2">
-            <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">الإيرادات الفعلية (ر.ع.)</span>
-            <p className="text-2xl font-extrabold text-white font-mono">{totalRevenue} ر.ع.</p>
+            <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">الإيرادات الفعلية ({currencySymbol})</span>
+            <p className="text-2xl font-extrabold text-white font-mono">{totalRevenue} {currencySymbol}</p>
             <p className="text-[10px] text-emerald-400 font-bold">لا تشمل العمليات الملغية</p>
           </div>
 
@@ -850,7 +854,7 @@ export const ReportsPage: React.FC = () => {
         <div className="grid grid-cols-4 gap-4 mb-8">
           <div className="border border-slate-300 p-3.5 rounded-lg bg-slate-50">
             <span className="text-[9px] font-bold text-slate-500 block">إجمالي الإيرادات الفعلية</span>
-            <span className="text-[16px] font-black text-emerald-700 font-mono block mt-1">{totalRevenue} ر.ع.</span>
+            <span className="text-[16px] font-black text-emerald-700 font-mono block mt-1">{totalRevenue} {currencySymbol}</span>
             <span className="text-[8px] text-slate-400 block mt-0.5">مؤكد وعمليات منتهية فقط</span>
           </div>
           <div className="border border-slate-300 p-3.5 rounded-lg bg-slate-50">
@@ -904,7 +908,7 @@ export const ReportsPage: React.FC = () => {
                     <td className="p-2 border border-slate-200">
                       {b.booking_type === 'full_day' ? 'يوم كامل' : 'نصف يوم'}
                     </td>
-                    <td className="p-2 border border-slate-200 font-bold font-mono text-slate-950 text-emerald-700">{b.total_price} ر.ع.</td>
+                    <td className="p-2 border border-slate-200 font-bold font-mono text-slate-950 text-emerald-700">{b.total_price} {currencySymbol}</td>
                     <td className="p-2 border border-slate-200 font-semibold">
                       {b.status === 'confirmed' ? 'مؤكد ونشط' :
                        b.status === 'completed' ? 'مكتمل' :

@@ -26,7 +26,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Booking, Property, Settings } from '../types';
-import { DatabaseService, checkOverlappingBookings, getCurrentlySimulatedUser } from '../services/db';
+import { DatabaseService, checkOverlappingBookings } from '../services/db';
+import { useAuth } from '../contexts/AuthContext';
 
 interface BookingsPageProps {
   forceOpenAdd?: number;
@@ -206,7 +207,8 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
   const [mainSelectedDayBookings, setMainSelectedDayBookings] = React.useState<Booking[] | null>(null);
   const [mainSelectedDayDate, setMainSelectedDayDate] = React.useState<Date | null>(null);
 
-  const currentUser = getCurrentlySimulatedUser();
+  const { profile } = useAuth();
+  const currentUser = profile!;
   const isBookingStaff = currentUser.role === 'booking_staff';
   const currencySymbol = settings?.currency_name || 'ر.ع.';
 

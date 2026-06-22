@@ -24,7 +24,8 @@ import {
   EyeOff
 } from 'lucide-react';
 import { Profile, UserRole, Property } from '../types';
-import { DatabaseService, getCurrentlySimulatedUser, setCurrentlySimulatedUser } from '../services/db';
+import { DatabaseService, setCurrentlySimulatedUser } from '../services/db';
+import { useAuth } from '../contexts/AuthContext';
 
 export const UsersPage: React.FC = () => {
   const [profiles, setProfiles] = React.useState<Profile[]>([]);
@@ -44,7 +45,8 @@ export const UsersPage: React.FC = () => {
     assigned_property_ids: [] as string[]
   });
 
-  const currentUser = getCurrentlySimulatedUser();
+  const { profile } = useAuth();
+  const currentUser = profile!;
   const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'company_manager';
 
   const loadData = async () => {

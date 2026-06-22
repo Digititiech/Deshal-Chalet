@@ -20,7 +20,8 @@ import {
   AlertOctagon
 } from 'lucide-react';
 import { Property, UserRole } from '../types';
-import { DatabaseService, getCurrentlySimulatedUser } from '../services/db';
+import { DatabaseService } from '../services/db';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PropertiesPageProps {
   onBookProperty?: (propertyId: string) => void;
@@ -43,7 +44,8 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
   const [typeFilter, setTypeFilter] = React.useState<string>('all');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
 
-  const currentUser = getCurrentlySimulatedUser();
+  const { profile } = useAuth();
+  const currentUser = profile!;
   const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'company_manager';
   const isPM = currentUser.role === 'property_manager';
   

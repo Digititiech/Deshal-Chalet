@@ -18,7 +18,8 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { Property, Booking, Notification, AuditLog } from '../types';
-import { DatabaseService, getCurrentlySimulatedUser } from '../services/db';
+import { DatabaseService } from '../services/db';
+import { useAuth } from '../contexts/AuthContext';
 
 interface DashboardProps {
   onNavigate: (tab: string) => void;
@@ -45,7 +46,8 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate }) => {
     loadData();
   }, []);
 
-  const currentUser = getCurrentlySimulatedUser();
+  const { profile } = useAuth();
+  const currentUser = profile!;
 
   // Calculations
   const totalProperties = properties.length;

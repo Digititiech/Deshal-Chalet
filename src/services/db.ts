@@ -95,12 +95,20 @@ let CURRENT_USER_PROFILE: Profile = {
 };
 
 export function getCurrentlySimulatedUser(): Profile {
+  // Return the in-memory profile first (set by AuthContext after login)
+  if (CURRENT_USER_PROFILE.id) {
+    return CURRENT_USER_PROFILE;
+  }
+  // Fallback: try localStorage cache
   try {
     const cached = localStorage.getItem('tsc_current_sim_user');
     if (cached) {
       const parsed = JSON.parse(cached);
+      // Try to find the full profile from local DB
       const matches = localDB.getProfiles().find(p => p.id === parsed.id);
       if (matches) return matches;
+      // Otherwise return the cached object itself (has full_name, role, etc.)
+      if (parsed.id && parsed.role) return parsed as Profile;
     }
   } catch {}
   return CURRENT_USER_PROFILE;

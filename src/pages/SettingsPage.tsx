@@ -18,14 +18,16 @@ import {
   Info
 } from 'lucide-react';
 import { Settings } from '../types';
-import { DatabaseService, getCurrentlySimulatedUser } from '../services/db';
+import { DatabaseService } from '../services/db';
+import { useAuth } from '../contexts/AuthContext';
 
 export const SettingsPage: React.FC = () => {
   const [settings, setSettings] = React.useState<Settings | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saveSuccess, setSaveSuccess] = React.useState(false);
 
-  const currentUser = getCurrentlySimulatedUser();
+  const { profile } = useAuth();
+  const currentUser = profile!;
   const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'company_manager';
 
   React.useEffect(() => {

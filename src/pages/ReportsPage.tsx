@@ -17,7 +17,8 @@ import {
   Printer
 } from 'lucide-react';
 import { AuditLog, Booking, Profile, Property } from '../types';
-import { DatabaseService, getCurrentlySimulatedUser } from '../services/db';
+import { DatabaseService } from '../services/db';
+import { useAuth } from '../contexts/AuthContext';
 
 const getDateRange = (preset: string, customStart?: string, customEnd?: string) => {
   const now = new Date();
@@ -111,7 +112,8 @@ export const ReportsPage: React.FC = () => {
   const [startDateStr, setStartDateStr] = React.useState<string>(new Date().toISOString().slice(0, 10));
   const [endDateStr, setEndDateStr] = React.useState<string>(new Date().toISOString().slice(0, 10));
 
-  const activeUser = getCurrentlySimulatedUser();
+  const { profile } = useAuth();
+  const activeUser = profile;
 
   React.useEffect(() => {
     async function loadData() {

@@ -4,46 +4,30 @@
  */
 
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  Home, 
-  CalendarDays, 
-  Users, 
-  FilePieChart, 
+import {
+  LayoutDashboard,
+  Home,
+  CalendarDays,
+  Users,
+  FilePieChart,
   Settings as SettingsIcon,
-  ShieldAlert,
-  HelpCircle,
   Database,
   Wifi,
-  WifiOff
+  WifiOff,
+  UserCircle2,
 } from 'lucide-react';
 import { Profile } from '../types';
-import { getCurrentlySimulatedUser, setCurrentlySimulatedUser, DatabaseService } from '../services/db';
+import { DatabaseService } from '../services/db';
 
 interface SidebarProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
-  onUserChanged: () => void;
+  currentUser: Profile;
+  onEditProfile: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, onUserChanged }) => {
-  const [profiles, setProfiles] = React.useState<Profile[]>([]);
-  const [activeUser, setActiveUser] = React.useState<Profile>(getCurrentlySimulatedUser());
-  const [isLive, setIsLive] = React.useState(DatabaseService.isLiveSupabase());
-
-  React.useEffect(() => {
-    DatabaseService.getProfiles().then(setProfiles);
-  }, [currentTab, activeUser]);
-
-  const handleSimUserChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedId = e.target.value;
-    const match = profiles.find(p => p.id === selectedId);
-    if (match) {
-      setCurrentlySimulatedUser(match);
-      setActiveUser(match);
-      onUserChanged();
-    }
-  };
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUser, onEditProfile }) => {
+  const [isLive] = React.useState(DatabaseService.isLiveSupabase());
 
   const menuItems = [
     { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
@@ -55,7 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, onU
   ];
 
   const roleLabelsAr: Record<string, string> = {
-    super_admin: 'المدير العام (Super)',
+    super_admin: 'المدير العام',
     company_manager: 'مدير الشركة',
     property_manager: 'مدير المرفق',
     booking_staff: 'موظف الحجوزات',
@@ -93,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, onU
           <span className="flex items-center gap-1 text-emerald-400 font-semibold animate-pulse">
             <Wifi className="w-3 h-3" /> قاعدة لايف
           </span>
-         ) : (
+        ) : (
           <span className="flex items-center gap-1 text-amber-300 font-medium font-mono">
             <WifiOff className="w-3 h-3" /> تخزين محلي
           </span>
@@ -123,42 +107,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, onU
         })}
       </nav>
 
-      {/* Simulation/Role switcher Footer */}
+      {/* Current User Profile Card (replaces role simulator) */}
       <div className="p-4 bg-white/5 border-t border-white/10">
-        <div className="mb-3">
-          <p className="text-[11px] text-slate-400 mb-1 font-semibold flex items-center gap-1 justify-between">
-            <span className="flex items-center gap-1">
-              <ShieldAlert className="w-3 h-3 text-amber-400" /> محاكي الصلاحيات النشط:
-            </span>
-          </p>
-          <select
-            id="role-simulator-select"
-            value={activeUser.id}
-            onChange={handleSimUserChange}
-            className="w-full bg-slate-950/40 border border-white/10 rounded-lg text-xs py-1.5 px-2 text-white focus:outline-none focus:border-blue-500 transition-colors"
-          >
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id} className="bg-slate-900 text-white">
-                {p.full_name} ({p.role.toUpperCase()})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Current Active User Profile summary */}
-        <div className="flex items-center gap-3 p-2 bg-white/5 rounded-xl border border-white/10">
-          <img
-            src={activeUser.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=60'}
-            alt={activeUser.full_name}
-            className="w-9 h-9 rounded-full object-cover border border-white/10"
-          />
+        <button
+          onClick={onEditProfile}
+          className="w-full flex items-center gap-3 p-2.5 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all group text-right"
+          title="تعديل الملف الشخصي"
+        >
+          <div className="relative flex-shrink-0">
+            {currentUser.avatar_url ? (
+              <img
+                src={currentUser.avatar_url}
+                alt={currentUser.full_name}
+                className="w-9 h-9 rounded-full object-cover border border-white/10"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
+                <UserCircle2 className="w-5 h-5 text-slate-400" />
+              </div>
+            )}
+            <span className="absolute bottom-0 left-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#0f172a] rounded-full" />
+          </div>
           <div className="flex-1 min-w-0">
-            <h4 className="text-xs font-bold text-slate-200 truncate">{activeUser.full_name}</h4>
-            <span className={`inline-block text-[9px] px-1.5 py-0.5 rounded-full font-bold mt-1 ${roleColors[activeUser.role] || 'bg-slate-800 text-slate-300'}`}>
-              {roleLabelsAr[activeUser.role] || activeUser.role}
+            <h4 className="text-xs font-bold text-slate-200 truncate">{currentUser.full_name}</h4>
+            <span className={`inline-block text-[9px] px-1.5 py-0.5 rounded-full font-bold mt-0.5 ${roleColors[currentUser.role] || 'bg-slate-800 text-slate-300'}`}>
+              {roleLabelsAr[currentUser.role] || currentUser.role}
             </span>
           </div>
-        </div>
+          <UserCircle2 className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-colors flex-shrink-0" />
+        </button>
       </div>
     </aside>
   );

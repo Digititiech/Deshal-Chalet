@@ -13,6 +13,8 @@ import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { DatabaseService } from './services/db';
+import { Profile } from './types';
 import {
   Bell,
   Menu,
@@ -23,10 +25,213 @@ import {
   RefreshCw,
   CalendarPlus,
   LogOut,
-  Loader2
+  Loader2,
+  UserCircle2,
+  Camera,
+  Save,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react';
-import { getCurrentlySimulatedUser, setCurrentlySimulatedUser, DatabaseService } from './services/db';
 import { Notification } from './types';
+
+// ─────────────────────────────────────────────────────────
+// Edit Profile Modal
+// ─────────────────────────────────────────────────────────
+interface EditProfileModalProps {
+  profile: Profile;
+  onClose: () => void;
+  onSaved: (updated: Profile) => void;
+}
+
+function EditProfileModal({ profile, onClose, onSaved }: EditProfileModalProps) {
+  const [fullName, setFullName] = React.useState(profile.full_name);
+  const [email, setEmail] = React.useState(profile.email);
+  const [avatarUrl, setAvatarUrl] = React.useState(profile.avatar_url || '');
+  const [newPassword, setNewPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [success, setSuccess] = React.useState(false);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!fullName.trim()) {
+      setError('الاسم الكامل مطلوب.');
+      return;
+    }
+    if (newPassword && newPassword.length < 6) {
+      setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل.');
+      return;
+    }
+    if (newPassword && newPassword !== confirmPassword) {
+      setError('كلمات المرور غير متطابقة.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const updated: Profile = {
+        ...profile,
+        full_name: fullName.trim(),
+        email: email.trim(),
+        avatar_url: avatarUrl.trim() || null,
+        ...(newPassword ? { password: newPassword } : {}),
+      };
+      const saved = await DatabaseService.updateProfile(updated);
+      setSuccess(true);
+      setTimeout(() => {
+        onSaved(saved);
+        onClose();
+      }, 900);
+    } catch (err: any) {
+      setError(err.message || 'حدث خطأ أثناء الحفظ.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" dir="rtl">
+      <div className="bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl w-full max-w-md animate-fadeIn">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <UserCircle2 className="w-5 h-5 text-amber-400" />
+            <h2 className="text-sm font-bold text-white">تعديل الملف الشخصي</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSave} className="p-6 space-y-5">
+          {/* Avatar preview */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={fullName}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-amber-500/40 shadow-lg"
+                  onError={() => setAvatarUrl('')}
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-white/10 border-2 border-white/10 flex items-center justify-center">
+                  <UserCircle2 className="w-10 h-10 text-slate-500" />
+                </div>
+              )}
+              <div className="absolute bottom-0 left-0 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center shadow-md">
+                <Camera className="w-3 h-3 text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* Avatar URL */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-300">رابط الصورة الشخصية (URL)</label>
+            <input
+              type="url"
+              value={avatarUrl}
+              onChange={e => setAvatarUrl(e.target.value)}
+              placeholder="https://example.com/avatar.jpg"
+              dir="ltr"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 transition-all text-left"
+            />
+          </div>
+
+          {/* Full Name */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-300">
+              الاسم الكامل <span className="text-rose-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              required
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 transition-all"
+            />
+          </div>
+
+          {/* Email */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-300">البريد الإلكتروني</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              dir="ltr"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 transition-all text-left"
+            />
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-white/10 pt-4">
+            <p className="text-[11px] text-slate-400 mb-3 font-semibold">تغيير كلمة المرور (اختياري)</p>
+            <div className="space-y-3">
+              <input
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="كلمة المرور الجديدة"
+                dir="ltr"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 transition-all text-left"
+              />
+              {newPassword && (
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="تأكيد كلمة المرور"
+                  dir="ltr"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 transition-all text-left"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Error / Success */}
+          {error && (
+            <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 animate-fadeIn">
+              <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+              <p className="text-rose-300 text-xs">{error}</p>
+            </div>
+          )}
+          {success && (
+            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 animate-fadeIn">
+              <CheckCircle className="w-4 h-4 text-emerald-400" />
+              <p className="text-emerald-300 text-xs font-semibold">تم حفظ التغييرات بنجاح!</p>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-bold text-slate-300 bg-white/10 hover:bg-white/15 rounded-xl transition-all cursor-pointer"
+            >
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading || success}
+              className="flex items-center gap-2 px-5 py-2 text-xs font-extrabold text-white bg-amber-600 hover:bg-amber-500 rounded-xl transition-all cursor-pointer disabled:opacity-60 shadow-lg shadow-amber-900/20"
+            >
+              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              حفظ التغييرات
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────
 // Inner Dashboard Shell (rendered after auth is confirmed)
@@ -43,18 +248,18 @@ function DashboardShell() {
   const [forceOpenBookingAdd, setForceOpenBookingAdd] = React.useState<number>(0);
   const [initialBookingPropertyId, setInitialBookingPropertyId] = React.useState<string>('');
   const [isSigningOut, setIsSigningOut] = React.useState(false);
+  const [showEditProfile, setShowEditProfile] = React.useState(false);
+  const [currentUser, setCurrentUser] = React.useState<Profile | null>(null);
 
   // Close notifications dropdown when switching tabs
   React.useEffect(() => {
     setShowNotificationsDropdown(false);
   }, [currentTab]);
 
-  const currentUser = getCurrentlySimulatedUser();
-
-  // Sync the simulated user to the authenticated profile on first load
+  // Sync current user from auth profile
   React.useEffect(() => {
     if (profile) {
-      setCurrentlySimulatedUser(profile);
+      setCurrentUser(profile);
       setSessionKey(k => k + 1);
     }
   }, [profile?.id]);
@@ -95,6 +300,11 @@ function DashboardShell() {
     setIsSigningOut(false);
   };
 
+  const handleProfileSaved = (updated: Profile) => {
+    setCurrentUser(updated);
+    setSessionKey(k => k + 1);
+  };
+
   const currentGregorianDate = new Date().toLocaleDateString('ar-OM', {
     weekday: 'long',
     year: 'numeric',
@@ -108,21 +318,21 @@ function DashboardShell() {
         return <DashboardPage key={sessionKey} onNavigate={(tab) => setCurrentTab(tab)} />;
       case 'properties':
         return (
-          <PropertiesPage 
-            key={sessionKey} 
+          <PropertiesPage
+            key={sessionKey}
             onBookProperty={(propId) => {
               setInitialBookingPropertyId(propId);
               setCurrentTab('bookings');
               setForceOpenBookingAdd(prev => prev + 1);
-            }} 
+            }}
           />
         );
       case 'bookings':
         return (
-          <BookingsPage 
-            key={sessionKey} 
-            forceOpenAdd={forceOpenBookingAdd} 
-            initialPropertyId={initialBookingPropertyId} 
+          <BookingsPage
+            key={sessionKey}
+            forceOpenAdd={forceOpenBookingAdd}
+            initialPropertyId={initialBookingPropertyId}
           />
         );
       case 'users':
@@ -138,7 +348,7 @@ function DashboardShell() {
 
   const unreadNotifCount = notifications.filter(n => !n.is_read).length;
 
-  if (isLoading) {
+  if (isLoading || !currentUser) {
     return (
       <div className="min-h-screen bg-[#0c1222] flex items-center justify-center" dir="rtl">
         <div className="flex flex-col items-center gap-4">
@@ -160,6 +370,15 @@ function DashboardShell() {
       {/* Mesh background gradient */}
       <div className="mesh-gradient" />
 
+      {/* Edit Profile Modal */}
+      {showEditProfile && (
+        <EditProfileModal
+          profile={currentUser}
+          onClose={() => setShowEditProfile(false)}
+          onSaved={handleProfileSaved}
+        />
+      )}
+
       {/* 1. Desktop & Mobile Sidebar */}
       <div className={`fixed inset-y-0 right-0 w-64 frosted border-l border-white/10 text-slate-100 flex flex-col z-40 transition-transform duration-300 shadow-2xl ${
         mobileMenuOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'
@@ -167,7 +386,8 @@ function DashboardShell() {
         <Sidebar
           currentTab={currentTab}
           setCurrentTab={selectTab}
-          onUserChanged={handleUserChanged}
+          currentUser={currentUser}
+          onEditProfile={() => { setShowEditProfile(true); setMobileMenuOpen(false); }}
         />
       </div>
 
@@ -284,16 +504,28 @@ function DashboardShell() {
               )}
             </div>
 
-            {/* User Badge + Sign Out */}
+            {/* User Badge + Edit Profile + Sign Out — Desktop */}
             <div className="hidden md:flex items-center gap-1.5 p-1.5 bg-white/5 border border-white/10 rounded-xl">
-              <div className="w-7 h-7 rounded-lg overflow-hidden bg-white/10 flex-shrink-0">
-                <img
-                  src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=40'}
-                  alt={currentUser.full_name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span className="text-xs font-bold text-slate-200 px-1 max-w-[120px] truncate">{currentUser.full_name}</span>
+              <button
+                onClick={() => setShowEditProfile(true)}
+                className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer"
+                title="تعديل الملف الشخصي"
+              >
+                <div className="w-7 h-7 rounded-lg overflow-hidden bg-white/10 flex-shrink-0">
+                  {currentUser.avatar_url ? (
+                    <img
+                      src={currentUser.avatar_url}
+                      alt={currentUser.full_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <UserCircle2 className="w-4 h-4 text-slate-400" />
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs font-bold text-slate-200 px-1 max-w-[120px] truncate">{currentUser.full_name}</span>
+              </button>
               <button
                 onClick={handleSignOut}
                 disabled={isSigningOut}
@@ -307,6 +539,20 @@ function DashboardShell() {
                 }
               </button>
             </div>
+
+            {/* Mobile: Logout button (visible on small screens) */}
+            <button
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="md:hidden p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+              title="تسجيل الخروج"
+              aria-label="تسجيل الخروج"
+            >
+              {isSigningOut
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <LogOut className="w-4 h-4" />
+              }
+            </button>
 
           </div>
 

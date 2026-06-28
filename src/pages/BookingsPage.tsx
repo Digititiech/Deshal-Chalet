@@ -469,6 +469,10 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
   };
 
   const handleUpdateStatus = async (booking: Booking, nextStatus: Booking['status']) => {
+    if (nextStatus === 'cancelled') {
+      const confirmCancel = window.confirm('هل أنت متأكد من رغبتك في إلغاء هذا الحجز وتغيير حالته لملغي؟');
+      if (!confirmCancel) return;
+    }
     try {
       const updated = { ...booking, status: nextStatus };
       await DatabaseService.updateBooking(updated);

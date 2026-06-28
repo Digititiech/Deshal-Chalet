@@ -40,73 +40,50 @@ const parseTimeToFloat = (timeStr: string): number => {
   return h + (m || 0) / 60;
 };
 
-// TimeRangeSlider: Allows selecting check-in and check-out times via a dual-thumb slider.
-// Uses two synchronized range inputs (0-24 hours) to simulate a range slider.
+// TimeSelector: Allows selecting check-in and check-out times via dropdown inputs.
 // startTime and endTime are strings in "HH:MM" format.
-const TimeRangeSlider: React.FC<{
+const TimeSelector: React.FC<{
   startTime: string;
   endTime: string;
   onChange: (start: string, end: string) => void;
 }> = ({ startTime, endTime, onChange }) => {
-  // Convert "HH:MM" to number of minutes for easier handling.
-  const timeToMinutes = (t: string) => {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + (m || 0);
-  };
-  const minutesToTime = (min: number) => {
-    const h = Math.floor(min / 60)
-      .toString()
-      .padStart(2, '0');
-    const m = (min % 60).toString().padStart(2, '0');
-    return `${h}:${m}`;
-  };
-
-  const [startMin, setStartMin] = React.useState(timeToMinutes(startTime));
-  const [endMin, setEndMin] = React.useState(timeToMinutes(endTime));
-
-  // Ensure start never exceeds end.
-  const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = Math.min(Number(e.target.value), endMin);
-    setStartMin(val);
-    onChange(minutesToTime(val), minutesToTime(endMin));
-  };
-  const handleEndChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = Math.max(Number(e.target.value), startMin);
-    setEndMin(val);
-    onChange(minutesToTime(startMin), minutesToTime(val));
-  };
+  const timeOptions = React.useMemo(() => {
+    return Array.from({ length: 48 }, (_, i) => {
+      const h = Math.floor(i / 2).toString().padStart(2, '0');
+      const m = (i % 2 === 0 ? '00' : '30');
+      return `${h}:${m}`;
+    });
+  }, []);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-xs text-slate-300">
-        <span>وقت الدخول: {minutesToTime(startMin)}</span>
-        <span>وقت المغادرة: {minutesToTime(endMin)}</span>
+    <div className="grid grid-cols-2 gap-4 w-full">
+      <div className="space-y-1.5 text-right">
+        <label className="block text-[11px] font-bold text-slate-300">وقت الدخول:</label>
+        <select
+          value={startTime}
+          onChange={(e) => onChange(e.target.value, endTime)}
+          className="w-full bg-slate-900/80 border border-white/10 text-white rounded-xl text-xs py-2 px-3 focus:outline-none focus:border-blue-500 font-mono font-bold cursor-pointer"
+        >
+          {timeOptions.map((t) => (
+            <option key={t} value={t} className="bg-[#0b0f19] text-white">
+              {t}
+            </option>
+          ))}
+        </select>
       </div>
-      <div className="relative h-6">
-        {/* Slider track */}
-        <div className="absolute inset-0 flex items-center">
-          <div className="flex-1 h-2 bg-white/10 rounded" />
-        </div>
-        {/* Start thumb */}
-        <input
-          type="range"
-          min={0}
-          max={1440}
-          step={15}
-          value={startMin}
-          onChange={handleStartChange}
-          className="absolute w-full h-6 appearance-none bg-transparent cursor-pointer thumb-thumb-left"
-        />
-        {/* End thumb */}
-        <input
-          type="range"
-          min={0}
-          max={1440}
-          step={15}
-          value={endMin}
-          onChange={handleEndChange}
-          className="absolute w-full h-6 appearance-none bg-transparent cursor-pointer thumb-thumb-right"
-        />
+      <div className="space-y-1.5 text-right">
+        <label className="block text-[11px] font-bold text-slate-300">وقت المغادرة:</label>
+        <select
+          value={endTime}
+          onChange={(e) => onChange(startTime, e.target.value)}
+          className="w-full bg-slate-900/80 border border-white/10 text-white rounded-xl text-xs py-2 px-3 focus:outline-none focus:border-blue-500 font-mono font-bold cursor-pointer"
+        >
+          {timeOptions.map((t) => (
+            <option key={t} value={t} className="bg-[#0b0f19] text-white">
+              {t}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );
@@ -1045,19 +1022,17 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
                         selectedEndHour={parseTimeToFloat(newBooking.check_out_time)}
                       />
                       
-                      <div className="grid grid-cols-2 gap-4">
-                    <TimeRangeSlider
-                      startTime={newBooking.check_in_time}
-                      endTime={newBooking.check_out_time}
-                      onChange={(start, end) =>
-                        setNewBooking(prev => ({
-                          ...prev,
-                          check_in_time: start,
-                          check_out_time: end,
-                        }))
-                      }
-                    />
-                      </div>
+                      <TimeSelector
+                        startTime={newBooking.check_in_time}
+                        endTime={newBooking.check_out_time}
+                        onChange={(start, end) =>
+                          setNewBooking(prev => ({
+                            ...prev,
+                            check_in_time: start,
+                            check_out_time: end,
+                          }))
+                        }
+                      />
                     </div>
                   )}
 
@@ -1381,50 +1356,47 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
                     <p className="text-[11px] text-slate-300">حدد ما إذا كنت تريد اعتماد المبلغ التلقائي المسعر للعقار (المحسوب أعلاه)، أو إدخال مبلغ مخصص يدوياً مخصوماً أو معدلاً:</p>
                   </div>
 
-                  {/* Mode Buttons selection */}
-                  <div className="flex flex-col md:flex-row gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setCustomPriceMode('auto')}
-                      className={`flex-1 p-3.5 rounded-xl border text-xs font-bold text-center transition-all ${
-                        customPriceMode === 'auto'
-                          ? 'bg-blue-600 text-white border-blue-500 shadow-lg'
-                          : 'bg-slate-950/40 text-slate-300 border-white/10 hover:bg-white/10'
-                      }`}
-                    >
-                      أوتوماتيكي (تلقائي للعقار): {estimatedPrice} {currencySymbol}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setCustomPriceMode('manual')}
-                      className={`flex-1 p-3.5 rounded-xl border text-xs font-bold text-center transition-all ${
-                        customPriceMode === 'manual'
-                          ? 'bg-purple-600 text-white border-purple-500 shadow-lg'
-                          : 'bg-slate-950/40 text-slate-300 border-white/10 hover:bg-white/10'
-                      }`}
-                    >
-                      إدخال مبلغ مخصص يدوياً (يدوي)
-                    </button>
-                  </div>
-
-                  {/* Manual price inputs box */}
-                  {customPriceMode === 'manual' && (
-                    <div className="p-3 bg-black/25 rounded-xl border border-purple-500/20 text-right space-y-1.5 animate-fadeIn">
-                      <label className="block text-xs font-bold text-slate-300">عيّن قيمة الحساب اليدوي الكلية ({currencySymbol}) *</label>
-                      <div className="relative max-w-xs">
-                        <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold text-xs select-none">{currencySymbol}</span>
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          value={manualPrice}
-                          onChange={(e) => setManualPrice(Number(e.target.value))}
-                          className="w-full bg-slate-950/50 border border-white/15 text-white pl-9 pr-3 rounded-xl text-xs py-2 focus:outline-none focus:border-purple-500 font-mono font-bold text-center"
+                  {/* Compact Mobile-friendly Custom Price Control */}
+                  <div className="flex flex-col gap-2 p-4 bg-slate-950/40 rounded-xl border border-white/10 text-right">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-350">سعر الحجز الإجمالي المعتمد ({currencySymbol})</span>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-blue-400 font-bold select-none">
+                        <input 
+                          type="checkbox" 
+                          checked={customPriceMode === 'manual'} 
+                          onChange={(e) => {
+                            const isManual = e.target.checked;
+                            setCustomPriceMode(isManual ? 'manual' : 'auto');
+                            if (!isManual) {
+                              setManualPrice(estimatedPrice);
+                            }
+                          }}
+                          className="w-3.5 h-3.5 accent-blue-500 rounded cursor-pointer"
                         />
-                      </div>
+                        تعديل السعر يدوياً
+                      </label>
                     </div>
-                  )}
+                    
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold text-xs select-none">{currencySymbol}</span>
+                      <input
+                        type="number"
+                        disabled={customPriceMode === 'auto'}
+                        value={customPriceMode === 'manual' ? manualPrice : estimatedPrice}
+                        onChange={(e) => setManualPrice(Number(e.target.value))}
+                        className={`w-full bg-slate-955/50 border rounded-xl text-xs py-2 pl-9 pr-3 outline-none font-mono font-bold text-center transition-all ${
+                          customPriceMode === 'manual' 
+                            ? 'border-purple-500/80 text-purple-300 focus:border-purple-500 bg-slate-900/50' 
+                            : 'border-white/10 text-slate-400 opacity-70 cursor-not-allowed bg-slate-950/20'
+                        }`}
+                      />
+                    </div>
+                    {customPriceMode === 'auto' && (
+                      <span className="text-[10px] text-slate-405 mt-0.5 block">
+                        السعر التلقائي للعقار (محسوب أوتوماتيكياً: {estimatedPrice} {currencySymbol})
+                      </span>
+                    )}
+                  </div>
 
                   {/* Final computed/defined outputs summary */}
                   <div className="p-3 bg-slate-950/60 rounded-xl border border-white/5 flex items-center justify-between text-right">

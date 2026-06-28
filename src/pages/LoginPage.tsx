@@ -4,16 +4,18 @@
  */
 
 import React, { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send, CheckCircle, AlertCircle, Loader2, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 type LoginView = 'login' | 'forgot_password' | 'forgot_success' | 'reset_password' | 'reset_success';
 
 interface LoginPageProps {
   forceView?: LoginView;
+  theme?: 'light' | 'dark';
+  toggleTheme?: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ forceView }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ forceView, theme, toggleTheme }) => {
   const { signIn, sendPasswordResetEmail, updatePassword, setIsRecoveryMode, authError, clearAuthError } = useAuth();
 
   // Form state
@@ -134,6 +136,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ forceView }) => {
       className="min-h-screen bg-[#0c1222] flex items-center justify-center p-4 relative overflow-hidden"
       dir="rtl"
     >
+      {/* Floating Theme Toggle */}
+      {toggleTheme && theme && (
+        <div className="absolute top-4 left-4 z-50">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-2.5 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 rounded-xl transition-all cursor-pointer shadow-lg backdrop-blur-md"
+            title={theme === 'light' ? 'تفعيل الوضع الداكن' : 'تفعيل الوضع المضيء'}
+          >
+            {theme === 'light' ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5" />}
+          </button>
+        </div>
+      )}
       {/* ═══════════════ Animated Background ═══════════════ */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Mesh gradient blobs */}

@@ -31,6 +31,8 @@ import {
   Save,
   AlertCircle,
   CheckCircle,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { Notification } from './types';
 
@@ -236,7 +238,7 @@ function EditProfileModal({ profile, onClose, onSaved }: EditProfileModalProps) 
 // ─────────────────────────────────────────────────────────
 // Inner Dashboard Shell (rendered after auth is confirmed)
 // ─────────────────────────────────────────────────────────
-function DashboardShell() {
+function DashboardShell({ theme, toggleTheme }: { theme: 'light' | 'dark'; toggleTheme: () => void }) {
   const { profile, signOut, isLoading } = useAuth();
 
   const [currentTab, setCurrentTab] = React.useState<string>('dashboard');
@@ -459,6 +461,15 @@ function DashboardShell() {
               <RefreshCw className="w-4 h-4" />
             </button>
 
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 rounded-xl transition-all cursor-pointer"
+              title={theme === 'light' ? 'تفعيل الوضع الداكن' : 'تفعيل الوضع المضيء'}
+            >
+              {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </button>
+
             {/* Notification Bell */}
             <div className="relative">
               <button
@@ -580,7 +591,7 @@ function DashboardShell() {
 // ─────────────────────────────────────────────────────────
 // Root Guard: show Login or Dashboard based on auth state
 // ─────────────────────────────────────────────────────────
-function AppGuard() {
+function AppGuard({ theme, toggleTheme }: { theme: 'light' | 'dark'; toggleTheme: () => void }) {
   const { isAuthenticated, isLoading, isRecoveryMode } = useAuth();
 
   if (isLoading) {
@@ -600,19 +611,36 @@ function AppGuard() {
   }
 
   if (isRecoveryMode) {
-    return <LoginPage forceView="reset_password" />;
+    return <LoginPage forceView="reset_password" theme={theme} toggleTheme={toggleTheme} />;
   }
 
-  return isAuthenticated ? <DashboardShell /> : <LoginPage />;
+  return isAuthenticated ? (
+    <DashboardShell theme={theme} toggleTheme={toggleTheme} />
+  ) : (
+    <LoginPage theme={theme} toggleTheme={toggleTheme} />
+  );
 }
 
 // ─────────────────────────────────────────────────────────
 // Default Export: App Root with Auth Provider
 // ─────────────────────────────────────────────────────────
 export default function App() {
+  const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 'dark';
+  });
+
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
+
   return (
     <AuthProvider>
-      <AppGuard />
+      <AppGuard theme={theme} toggleTheme={toggleTheme} />
     </AuthProvider>
   );
 }

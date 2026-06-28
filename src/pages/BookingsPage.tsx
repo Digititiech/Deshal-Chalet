@@ -203,8 +203,11 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
     }
   };
 
+  const lastProcessedForceOpenAdd = React.useRef<number | undefined>(undefined);
+
   React.useEffect(() => {
-    if (forceOpenAdd && forceOpenAdd > 0) {
+    if (forceOpenAdd && forceOpenAdd > 0 && forceOpenAdd !== lastProcessedForceOpenAdd.current) {
+      lastProcessedForceOpenAdd.current = forceOpenAdd;
       setIsAdding(true);
       setValidationError(null);
       if (initialPropertyId && properties.length > 0) {

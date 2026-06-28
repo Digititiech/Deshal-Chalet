@@ -683,9 +683,11 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
                       <button
                         type="button"
                         onClick={() => {
-                          const rates = [...(editingProp.custom_rates || [])];
-                          rates.splice(idx, 1);
-                          setEditingProp({ ...editingProp, custom_rates: rates });
+                          if (window.confirm('هل أنت متأكد من رغبتك في حذف هذا السعر الموسمي؟')) {
+                            const rates = [...(editingProp.custom_rates || [])];
+                            rates.splice(idx, 1);
+                            setEditingProp({ ...editingProp, custom_rates: rates });
+                          }
                         }}
                         className="text-rose-450 hover:text-rose-300 font-bold text-xs"
                       >

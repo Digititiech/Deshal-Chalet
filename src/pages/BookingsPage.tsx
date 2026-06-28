@@ -245,6 +245,13 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
     }
   }, [estimatedPrice]);
 
+  // Reset calendar view to today when adding modal opens
+  React.useEffect(() => {
+    if (isAdding) {
+      setCalendarViewDate(new Date());
+    }
+  }, [isAdding]);
+
   // Sync default property discount and reset holiday rate on property selection
   React.useEffect(() => {
     if (newBooking.property_id && properties.length > 0) {
@@ -831,6 +838,17 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
                 return;
               }
 
+              // Confirm if booking is in the past
+              const selectedDateObj = new Date(year, month, dayNum);
+              const todayObj = new Date();
+              todayObj.setHours(0, 0, 0, 0);
+              if (selectedDateObj < todayObj) {
+                const confirmOld = window.confirm('تنبيه: لقد اخترت تاريخاً في الماضي. هل تريد الاستمرار وتأكيد الحجز بتاريخ قديم؟');
+                if (!confirmOld) {
+                  return;
+                }
+              }
+
               if (newBooking.booking_type === 'half_day') {
                 setNewBooking(prev => ({
                   ...prev,
@@ -984,6 +1002,8 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
 
                       const checkInActive = cellDateStr === newBooking.check_in;
                       const checkOutActive = cellDateStr === newBooking.check_out;
+                      const todayObj = new Date();
+                      const isToday = todayObj.getDate() === dayNum && todayObj.getMonth() === month && todayObj.getFullYear() === year;
 
                       let classColors = "bg-white/5 text-slate-100 hover:bg-white/10 border-white/5";
                       if (booked) {
@@ -1000,9 +1020,10 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
                           type="button"
                           disabled={booked}
                           onClick={() => handleCalendarDayClick(dayNum)}
-                          className={`relative aspect-square rounded-xl border text-[11px] font-mono font-bold flex flex-col items-center justify-center cursor-pointer transition-all ${classColors}`}
+                          className={`relative aspect-square rounded-xl border text-[11px] font-mono font-bold flex flex-col items-center justify-center cursor-pointer transition-all ${classColors} ${isToday ? 'ring-2 ring-amber-500/80 border-amber-500/30 bg-amber-500/5' : ''}`}
                         >
                           <span>{dayNum}</span>
+                          {isToday && !checkInActive && !checkOutActive && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500" title="اليوم" />}
                           {checkInActive && <span className="absolute bottom-0.5 text-[7px] font-sans font-black bg-emerald-500 text-white px-1 py-0.5 rounded-md leading-none scale-90">وصول</span>}
                           {checkOutActive && <span className="absolute bottom-0.5 text-[7px] font-sans font-black bg-amber-500 text-white px-1 py-0.5 rounded-md leading-none scale-90">مغادرة</span>}
                           {booked && <span className="absolute bottom-0.5 text-[7px] font-sans font-black bg-rose-500/20 text-rose-400 px-1 py-0.5 rounded-md leading-none scale-90 select-none">محجوز</span>}

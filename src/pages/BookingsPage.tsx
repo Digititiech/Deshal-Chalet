@@ -433,7 +433,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
         check_in: startISO,
         check_out: endISO,
         booking_type: newBooking.booking_type,
-        status: 'pending',
+        status: 'confirmed',
         total_price: finalPrice,
         created_by: currentUser.id
       });
@@ -1192,7 +1192,24 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
                 <button
                   type="button"
                   disabled={!newBooking.guest_name.trim() || !newBooking.guest_phone.trim()}
-                  onClick={() => setWizardStep(6)}
+                  onClick={() => {
+                    const phoneClean = newBooking.guest_phone.trim();
+                    const phoneRegex = /^[0-9]{8,15}$/;
+                    if (!phoneRegex.test(phoneClean)) {
+                      alert('يرجى إدخال رقم هاتف صحيح يتكون من 8 إلى 15 رقماً (أرقام فقط بدون مسافات أو رموز).');
+                      return;
+                    }
+
+                    if (newBooking.guest_email.trim()) {
+                      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                      if (!emailRegex.test(newBooking.guest_email.trim())) {
+                        alert('يرجى إدخال بريد إلكتروني صحيح (مثال: client@domain.com).');
+                        return;
+                      }
+                    }
+
+                    setWizardStep(6);
+                  }}
                   className={`px-5 py-2 rounded-lg text-xs font-extrabold cursor-pointer ${
                     (!newBooking.guest_name.trim() || !newBooking.guest_phone.trim())
                       ? 'bg-slate-800 text-slate-450 border-white/5 cursor-not-allowed'

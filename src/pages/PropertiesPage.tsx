@@ -77,9 +77,9 @@ export const PropertiesPage: React.FC<PropertiesPageProps> = ({ onBookProperty }
   }, []);
 
   const handleStatusQuickToggle = async (prop: Property, newStatus: Property['status']) => {
-    // If PM, check if they own the property. For simplicity, PM 1 (p-3) owns Golden Sands (prop-1).
-    if (isPM && currentUser.id === 'p-3' && prop.id !== 'prop-1') {
-      alert('خطأ في الصلاحيات: يمكنك فقط تحديث حالة عقار منتجع الرمال الذهبية الخاص بك.');
+    // If PM, check if they own/are assigned to the property.
+    if (isPM && (!currentUser.assigned_property_ids || !currentUser.assigned_property_ids.includes(prop.id))) {
+      alert('خطأ في الصلاحيات: يمكنك فقط تحديث حالة العقارات المعينة لك.');
       return;
     }
     

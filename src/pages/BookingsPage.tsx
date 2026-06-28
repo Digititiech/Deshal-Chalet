@@ -407,7 +407,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
 
   }, [newBooking, properties, useHolidayRate, discountInput]);
 
-  const handleCreateBookingSubmit = async (e?: React.FormEvent) => {
+  const handleCreateBookingSubmit = async (statusToSave: Booking['status'] = 'confirmed', e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
     if (validationError) {
@@ -433,7 +433,7 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
         check_in: startISO,
         check_out: endISO,
         booking_type: newBooking.booking_type,
-        status: 'confirmed',
+        status: statusToSave,
         total_price: finalPrice,
         created_by: currentUser.id
       });
@@ -1473,16 +1473,22 @@ export const BookingsPage: React.FC<BookingsPageProps> = ({ forceOpenAdd, initia
       <p className="text-slate-300 mb-6">هل تريد حفظ حجز هذا العقار؟</p>
       <div className="flex justify-end space-x-3 space-x-reverse">
         <button
-          className="px-4 py-2 bg-white/10 text-slate-300 rounded hover:bg-white/20"
+          className="px-4 py-2 bg-white/10 text-slate-350 hover:text-white rounded hover:bg-white/15 cursor-pointer text-xs font-bold"
           onClick={() => setShowConfirmModal(false)}
         >
           إلغاء
         </button>
         <button
-          className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-500"
-          onClick={() => { setShowConfirmModal(false); handleCreateBookingSubmit(); }}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded cursor-pointer text-xs font-bold"
+          onClick={() => { setShowConfirmModal(false); handleCreateBookingSubmit('pending'); }}
         >
-          تأكيد
+          حفظ (قيد الانتظار)
+        </button>
+        <button
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded cursor-pointer text-xs font-bold"
+          onClick={() => { setShowConfirmModal(false); handleCreateBookingSubmit('confirmed'); }}
+        >
+          تأكيد الحجز
         </button>
       </div>
     </div>
